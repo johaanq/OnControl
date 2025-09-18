@@ -87,7 +87,7 @@ export default function MedicoPerfilPage() {
     setFormData((prev) => ({
       ...prev,
       [parent]: {
-        ...(prev[parent as keyof typeof prev] as Record<string, any> || {}),
+        ...(prev[parent as keyof typeof prev] as Record<string, unknown> || {}),
         [field]: value
       }
     }))
