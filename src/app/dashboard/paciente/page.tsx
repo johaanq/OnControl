@@ -192,17 +192,8 @@ const mockTreatmentProgress = {
   qualityOfLife: 7.5, // sobre 10
 }
 
-const mockVitalSigns = {
-  lastUpdate: "2025-01-17",
-  weight: "68 kg",
-  bloodPressure: "120/80",
-  heartRate: "72 bpm",
-  temperature: "36.5°C",
-  oxygenSaturation: "98%",
-}
 
 export default function PacienteDashboard() {
-  const [selectedTimeframe] = useState("week")
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {

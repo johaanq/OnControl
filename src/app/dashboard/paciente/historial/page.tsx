@@ -15,10 +15,7 @@ import {
   Stethoscope,
   Download,
   CheckCircle,
-  AlertTriangle,
-  TrendingUp,
-  TrendingDown,
-  Minus
+  AlertTriangle
 } from "lucide-react"
 
 // Mock data para historial médico

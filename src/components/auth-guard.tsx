@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useEffect, useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { OnControlLogo } from "./oncontrol-logo"
 
 interface AuthGuardProps {
@@ -14,7 +14,6 @@ interface AuthGuardProps {
 export function AuthGuard({ children, requiredUserType }: AuthGuardProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [userType, setUserType] = useState<"medico" | "paciente" | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -26,7 +25,6 @@ export function AuthGuard({ children, requiredUserType }: AuthGuardProps) {
 
       if (mockAuth === "true" && mockUserType) {
         setIsAuthenticated(true)
-        setUserType(mockUserType)
 
         // Check if user type matches required type
         if (requiredUserType && mockUserType !== requiredUserType) {

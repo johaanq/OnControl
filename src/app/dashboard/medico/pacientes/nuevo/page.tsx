@@ -16,13 +16,9 @@ import { Switch } from "@/components/ui/switch"
 import { 
   User, 
   CalendarIcon, 
-  MapPin, 
-  Phone, 
-  Mail, 
   FileText, 
   ArrowLeft, 
   CheckCircle,
-  Heart,
   Stethoscope,
   AlertTriangle
 } from "lucide-react"

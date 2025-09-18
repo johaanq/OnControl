@@ -157,26 +157,8 @@ const mockTodayAppointments = [
 ]
 
 
-const mockWeeklyStats = {
-  appointments: [
-    { day: "Lun", count: 8 },
-    { day: "Mar", count: 12 },
-    { day: "Mié", count: 10 },
-    { day: "Jue", count: 15 },
-    { day: "Vie", count: 11 },
-    { day: "Sáb", count: 6 },
-    { day: "Dom", count: 2 },
-  ],
-  treatmentTypes: [
-    { type: "Quimioterapia", count: 18, percentage: 45 },
-    { type: "Radioterapia", count: 12, percentage: 30 },
-    { type: "Inmunoterapia", count: 6, percentage: 15 },
-    { type: "Cirugía", count: 4, percentage: 10 },
-  ],
-}
 
 export default function MedicoDashboard() {
-  const [selectedTimeframe] = useState("week")
 
   return (
     <AuthGuard requiredUserType="medico">
