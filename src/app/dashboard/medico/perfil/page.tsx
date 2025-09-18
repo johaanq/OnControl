@@ -79,15 +79,15 @@ export default function MedicoPerfilPage() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
 
-  const handleInputChange = (field: string, value: string | Date | null) => {
+  const handleInputChange = (field: string, value: string | Date | null | undefined | number | string[]) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleNestedInputChange = (parent: string, field: string, value: string | number) => {
+  const handleNestedInputChange = (parent: string, field: string, value: string | number | boolean) => {
     setFormData((prev) => ({
       ...prev,
       [parent]: {
-        ...prev[parent as keyof typeof prev],
+        ...(prev[parent as keyof typeof prev] as Record<string, any> || {}),
         [field]: value
       }
     }))

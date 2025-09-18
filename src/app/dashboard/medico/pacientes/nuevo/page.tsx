@@ -94,7 +94,7 @@ export default function NuevoPacientePage() {
   const [success, setSuccess] = useState(false)
   const router = useRouter()
 
-  const handleInputChange = (field: string, value: string | Date | null) => {
+  const handleInputChange = (field: string, value: string | Date | null | undefined | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
