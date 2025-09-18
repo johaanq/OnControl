@@ -176,7 +176,7 @@ const mockWeeklyStats = {
 }
 
 export default function MedicoDashboard() {
-  const [selectedTimeframe, setSelectedTimeframe] = useState("week")
+  const [selectedTimeframe] = useState("week")
 
   return (
     <AuthGuard requiredUserType="medico">

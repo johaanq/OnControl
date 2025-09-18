@@ -202,7 +202,7 @@ const mockVitalSigns = {
 }
 
 export default function PacienteDashboard() {
-  const [selectedTimeframe, setSelectedTimeframe] = useState("week")
+  const [selectedTimeframe] = useState("week")
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {

@@ -70,7 +70,7 @@ export function DashboardLayout({ children, userType }: DashboardLayoutProps) {
 
   const navItems = userType === "medico" ? medicoNavItems : pacienteNavItems
 
-  const NavItem = ({ href, icon: Icon, label, badge }: any) => {
+  const NavItem = ({ href, icon: Icon, label, badge }: { href: string; icon: any; label: string; badge: string | null }) => {
     const isActive = pathname === href
     return (
       <Link

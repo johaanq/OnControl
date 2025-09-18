@@ -8,28 +8,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
   User, 
   Mail, 
-  Phone, 
-  MapPin, 
-  Calendar, 
   GraduationCap, 
   Award, 
   Settings,
   Save,
   Edit,
   Camera,
-  Shield,
-  Bell,
-  Globe
+  Shield
 } from "lucide-react"
-import { format } from "date-fns"
-import Link from "next/link"
 
 // Mock data del médico
 const mockMedicoData = {
@@ -87,11 +79,11 @@ export default function MedicoPerfilPage() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | Date | null) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleNestedInputChange = (parent: string, field: string, value: any) => {
+  const handleNestedInputChange = (parent: string, field: string, value: string | number) => {
     setFormData((prev) => ({
       ...prev,
       [parent]: {
@@ -111,7 +103,7 @@ export default function MedicoPerfilPage() {
       await new Promise(resolve => setTimeout(resolve, 1000))
       setSuccess("Perfil actualizado exitosamente")
       setIsEditing(false)
-    } catch (err) {
+    } catch {
       setError("Error al actualizar el perfil")
     } finally {
       setIsLoading(false)

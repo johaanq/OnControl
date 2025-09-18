@@ -10,14 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { 
   FileText, 
-  Calendar, 
   Heart, 
   Activity, 
-  Pill, 
   Stethoscope,
   Download,
-  Eye,
-  Clock,
   CheckCircle,
   AlertTriangle,
   TrendingUp,
@@ -201,11 +197,6 @@ export default function HistorialPage() {
     return <AlertTriangle className="h-4 w-4 text-red-600" />
   }
 
-  const getTrendIcon = (current: number, previous: number) => {
-    if (current > previous) return <TrendingUp className="h-4 w-4 text-red-600" />
-    if (current < previous) return <TrendingDown className="h-4 w-4 text-green-600" />
-    return <Minus className="h-4 w-4 text-gray-600" />
-  }
 
   return (
     <AuthGuard requiredUserType="paciente">

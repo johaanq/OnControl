@@ -80,7 +80,7 @@ export default function SintomasPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [severityFilter, setSeverityFilter] = useState("all")
   const [dateFilter, setDateFilter] = useState<Date>()
-  const [sortBy, setSortBy] = useState("date")
+  const [sortBy] = useState("date")
 
   const filteredSymptoms = mockSymptoms.filter((symptom) => {
     const matchesSearch =

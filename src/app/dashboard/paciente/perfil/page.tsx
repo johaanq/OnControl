@@ -16,22 +16,14 @@ import { Badge } from "@/components/ui/badge"
 import { 
   User, 
   Mail, 
-  Phone, 
-  MapPin, 
-  Calendar, 
   Heart, 
   Shield, 
   Settings,
   Save,
   Edit,
   Camera,
-  Bell,
-  Users,
-  FileText,
   AlertTriangle
 } from "lucide-react"
-import { format } from "date-fns"
-import Link from "next/link"
 
 // Mock data del paciente
 const mockPacienteData = {
@@ -98,11 +90,11 @@ export default function PacientePerfilPage() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | Date | null) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleNestedInputChange = (parent: string, field: string, value: any) => {
+  const handleNestedInputChange = (parent: string, field: string, value: string | number) => {
     setFormData((prev) => ({
       ...prev,
       [parent]: {
@@ -122,7 +114,7 @@ export default function PacientePerfilPage() {
       await new Promise(resolve => setTimeout(resolve, 1000))
       setSuccess("Perfil actualizado exitosamente")
       setIsEditing(false)
-    } catch (err) {
+    } catch {
       setError("Error al actualizar el perfil")
     } finally {
       setIsLoading(false)

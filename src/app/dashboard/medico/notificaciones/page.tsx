@@ -4,11 +4,9 @@ import { useState } from "react"
 import { AuthGuard } from "@/components/auth-guard"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { 
   Bell, 
   Calendar, 
@@ -17,7 +15,6 @@ import {
   CheckCircle, 
   Clock, 
   User, 
-  MessageCircle,
   Filter,
   CheckCheck,
   Trash2,
@@ -171,7 +168,7 @@ export default function NotificacionesMedicoPage() {
     return `Hace ${Math.floor(diffInMinutes / 1440)} días`
   }
 
-  const getNotificationAction = (notification: any) => {
+  const getNotificationAction = (notification: { type: string; appointmentId?: number; patientId?: number }) => {
     switch (notification.type) {
       case "appointment":
         return (

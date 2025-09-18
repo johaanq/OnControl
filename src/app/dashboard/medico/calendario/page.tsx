@@ -110,7 +110,7 @@ const timeSlots = [
 export default function CalendarioPage() {
   const [currentWeek, setCurrentWeek] = useState(new Date())
   const [viewMode, setViewMode] = useState<"week" | "day">("week")
-  const [selectedDate, setSelectedDate] = useState(new Date())
+  const [selectedDate] = useState(new Date())
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 })
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))

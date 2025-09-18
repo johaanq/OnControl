@@ -16,7 +16,6 @@ export function AuthGuard({ children, requiredUserType }: AuthGuardProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userType, setUserType] = useState<"medico" | "paciente" | null>(null)
   const router = useRouter()
-  const pathname = usePathname()
 
   useEffect(() => {
     // Simulate authentication check

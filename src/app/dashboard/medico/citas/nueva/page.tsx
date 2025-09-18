@@ -83,7 +83,7 @@ export default function NuevaCitaPage() {
   const [success, setSuccess] = useState(false)
   const router = useRouter()
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | Date | null) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 

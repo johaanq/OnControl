@@ -17,7 +17,6 @@ import {
   Activity,
   Download,
   Filter,
-  FileText,
   PieChart,
   LineChart
 } from "lucide-react"
@@ -85,7 +84,7 @@ const mockDatosGraficos = {
 
 export default function ReportesPage() {
   const [periodoSeleccionado, setPeriodoSeleccionado] = useState("mes")
-  const [tipoReporte, setTipoReporte] = useState("general")
+  const [tipoReporte] = useState("general")
 
   const generarReporte = () => {
     // TODO: Implementar lógica de generación de reportes
