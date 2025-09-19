@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, memo, useMemo, useCallback } from "react"
 import { OnControlLogo } from "./oncontrol-logo"
 import { Button } from "./ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
@@ -38,27 +38,29 @@ interface DashboardLayoutProps {
   userType: "medico" | "paciente"
 }
 
-export function DashboardLayout({ children, userType }: DashboardLayoutProps) {
+export const DashboardLayout = memo(function DashboardLayout({ children, userType }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
 
-  const handleLogout = () => {
-    localStorage.removeItem("oncontrol-auth")
-    localStorage.removeItem("oncontrol-user-type")
+  const handleLogout = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem("oncontrol-auth")
+      localStorage.removeItem("oncontrol-user-type")
+    }
     router.push("/auth/login")
-  }
+  }, [router])
 
-  const medicoNavItems = [
+  const medicoNavItems = useMemo(() => [
     { href: "/dashboard/medico", icon: Home, label: "Dashboard", badge: null },
     { href: "/dashboard/medico/pacientes", icon: Users, label: "Pacientes", badge: "24" },
     { href: "/dashboard/medico/calendario", icon: Calendar, label: "Calendario", badge: "6" },
     { href: "/dashboard/medico/tratamientos", icon: Heart, label: "Tratamientos", badge: null },
     { href: "/dashboard/medico/notificaciones", icon: Bell, label: "Notificaciones", badge: "3" },
     { href: "/dashboard/medico/reportes", icon: BarChart3, label: "Reportes", badge: null },
-  ]
+  ], [])
 
-  const pacienteNavItems = [
+  const pacienteNavItems = useMemo(() => [
     { href: "/dashboard/paciente", icon: Home, label: "Dashboard", badge: null },
     { href: "/dashboard/paciente/tratamiento", icon: Heart, label: "Mi Tratamiento", badge: null },
     { href: "/dashboard/paciente/citas", icon: Calendar, label: "Mis Citas", badge: "2" },
@@ -66,11 +68,14 @@ export function DashboardLayout({ children, userType }: DashboardLayoutProps) {
     { href: "/dashboard/paciente/medicamentos", icon: Stethoscope, label: "Medicamentos", badge: null },
     { href: "/dashboard/paciente/notificaciones", icon: Bell, label: "Notificaciones", badge: "2" },
     { href: "/dashboard/paciente/historial", icon: FileText, label: "Historial", badge: null },
-  ]
+  ], [])
 
-  const navItems = userType === "medico" ? medicoNavItems : pacienteNavItems
+  const navItems = useMemo(() => 
+    userType === "medico" ? medicoNavItems : pacienteNavItems,
+    [userType, medicoNavItems, pacienteNavItems]
+  )
 
-  const NavItem = ({ href, icon: Icon, label, badge }: { href: string; icon: React.ComponentType<{ className?: string }>; label: string; badge: string | null }) => {
+  const NavItem = memo(function NavItem({ href, icon: Icon, label, badge }: { href: string; icon: React.ComponentType<{ className?: string }>; label: string; badge: string | null }) {
     const isActive = pathname === href
     return (
       <Link
@@ -89,7 +94,7 @@ export function DashboardLayout({ children, userType }: DashboardLayoutProps) {
         )}
       </Link>
     )
-  }
+  })
 
   return (
     <div className="min-h-screen bg-background">
@@ -190,4 +195,4 @@ export function DashboardLayout({ children, userType }: DashboardLayoutProps) {
       </div>
     </div>
   )
-}
+})

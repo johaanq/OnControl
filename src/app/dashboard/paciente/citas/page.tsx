@@ -15,7 +15,6 @@ import {
   MapPin,
   User,
   Phone,
-  MessageCircle,
   CheckCircle,
   X,
   AlertTriangle,
@@ -23,6 +22,7 @@ import {
 } from "lucide-react"
 import { format, parseISO, isFuture, isPast } from "date-fns"
 import { es } from "date-fns/locale"
+import Link from "next/link"
 
 // Mock data
 const mockAppointments = [
@@ -180,9 +180,11 @@ export default function CitasPacientePage() {
               <h1 className="text-3xl font-bold text-foreground">Mis Citas</h1>
               <p className="text-muted-foreground">Gestiona tus citas médicas</p>
             </div>
-            <Button variant="outline">
-              <MessageCircle className="mr-2 h-4 w-4" />
-              Contactar Doctor
+            <Button className="oncontrol-gradient text-white" asChild>
+              <Link href="/dashboard/paciente/citas/nueva">
+                <Calendar className="mr-2 h-4 w-4" />
+                Solicitar Nueva Cita
+              </Link>
             </Button>
           </div>
 
@@ -348,9 +350,11 @@ export default function CitasPacientePage() {
                 <p className="text-muted-foreground mb-4">
                   No tienes citas que coincidan con los filtros seleccionados.
                 </p>
-                <Button variant="outline">
-                  <MessageCircle className="mr-2 h-4 w-4" />
-                  Solicitar Nueva Cita
+                <Button className="oncontrol-gradient text-white" asChild>
+                  <Link href="/dashboard/paciente/citas/nueva">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Solicitar Nueva Cita
+                  </Link>
                 </Button>
               </CardContent>
             </Card>
@@ -364,9 +368,11 @@ export default function CitasPacientePage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2 bg-transparent">
-                  <MessageCircle className="h-6 w-6" />
-                  <span>Solicitar Nueva Cita</span>
+                <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2 bg-transparent" asChild>
+                  <Link href="/dashboard/paciente/citas/nueva">
+                    <Calendar className="h-6 w-6" />
+                    <span>Solicitar Nueva Cita</span>
+                  </Link>
                 </Button>
                 <Button variant="outline" className="h-auto p-4 flex flex-col items-center gap-2 bg-transparent">
                   <Phone className="h-6 w-6" />

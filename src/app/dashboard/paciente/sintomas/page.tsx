@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -122,13 +123,75 @@ export default function SintomasPage() {
               <h1 className="text-3xl font-bold text-foreground">Registro de Síntomas</h1>
               <p className="text-muted-foreground">Lleva un seguimiento detallado de tus síntomas</p>
             </div>
-            <Button className="oncontrol-gradient text-white" asChild>
-              <Link href="/dashboard/paciente/sintomas/nuevo">
-                <Plus className="mr-2 h-4 w-4" />
-                Reportar Síntoma
-              </Link>
-            </Button>
+            <div className="flex gap-3">
+              <Button variant="outline" asChild>
+                <Link href="/dashboard/paciente/sintomas/nuevo">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Reportar Síntoma Completo
+                </Link>
+              </Button>
+              <Button className="oncontrol-gradient text-white" asChild>
+                <Link href="/dashboard/paciente/sintomas/nuevo">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Reportar Síntoma
+                </Link>
+              </Button>
+            </div>
           </div>
+
+          {/* Quick Symptom Report */}
+          <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Plus className="h-5 w-5 text-primary" />
+                Reporte Rápido de Síntoma
+              </CardTitle>
+              <CardDescription>Registra un síntoma común de forma rápida</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="quick-symptom">Síntoma</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecciona un síntoma" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fatiga">Fatiga</SelectItem>
+                      <SelectItem value="nauseas">Náuseas</SelectItem>
+                      <SelectItem value="dolor-cabeza">Dolor de cabeza</SelectItem>
+                      <SelectItem value="dolor-muscular">Dolor muscular</SelectItem>
+                      <SelectItem value="fiebre">Fiebre</SelectItem>
+                      <SelectItem value="perdida-apetito">Pérdida de apetito</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="quick-severity">Severidad</Label>
+                  <Select>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Nivel de severidad" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="leve">Leve</SelectItem>
+                      <SelectItem value="moderada">Moderada</SelectItem>
+                      <SelectItem value="severa">Severa</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="quick-time">Hora</Label>
+                  <Input type="time" />
+                </div>
+              </div>
+              <div className="flex justify-end mt-4">
+                <Button size="sm" className="oncontrol-gradient text-white">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Registrar Rápidamente
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Clock, User, Pill, Activity, Plus, Search, Eye, Edit, Trash2 } from "lucide-react"
+import Link from "next/link"
 
 // Mock data para tratamientos
 const mockTratamientos = [
@@ -86,9 +87,11 @@ export default function TratamientosPage() {
           <h1 className="text-3xl font-bold text-gray-900">Gestión de Tratamientos</h1>
           <p className="text-gray-600 mt-1">Administra los protocolos de tratamiento de tus pacientes</p>
         </div>
-        <Button className="bg-teal-600 hover:bg-teal-700">
-          <Plus className="w-4 h-4 mr-2" />
-          Nuevo Tratamiento
+        <Button className="oncontrol-gradient text-white" asChild>
+          <Link href="/dashboard/medico/tratamientos/nuevo">
+            <Plus className="w-4 h-4 mr-2" />
+            Nuevo Tratamiento
+          </Link>
         </Button>
       </div>
 
