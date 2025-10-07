@@ -1,222 +1,281 @@
 "use client"
 
-import { useState } from "react"
-import { AuthGuard } from "@/components/auth-guard"
-import { DashboardLayout } from "@/components/dashboard-layout"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Activity, Plus, Filter, CalendarIcon, TrendingUp, AlertTriangle } from "lucide-react"
-import { format } from "date-fns"
-import { es } from "date-fns/locale"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import { AuthGuard } from "@/components/auth-guard-updated"
+import { DashboardLayout } from "@/components/dashboard-layout"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Loading } from "@/components/loading"
+import { useAuthContext } from "@/contexts/auth-context"
+import { symptoms } from "@/lib/api"
+import type { SymptomResponse } from "@/lib/api"
+import { isPatientUser } from "@/types/organization"
+import { Search, Plus, Filter, Activity, AlertTriangle, Clock, Calendar } from "lucide-react"
 
-// Mock data
-const mockSymptoms = [
-  {
-    id: 1,
-    symptom: "Fatiga",
-    severity: "Moderada",
-    date: "2025-01-17",
-    time: "14:30",
-    notes: "Después del tratamiento de quimioterapia",
-    duration: "4 horas",
-    triggers: ["Tratamiento"],
-  },
-  {
-    id: 2,
-    symptom: "Náuseas",
-    severity: "Leve",
-    date: "2025-01-16",
-    time: "08:00",
-    notes: "Por la mañana, antes del desayuno",
-    duration: "2 horas",
-    triggers: ["Ayuno"],
-  },
-  {
-    id: 3,
-    symptom: "Dolor de cabeza",
-    severity: "Leve",
-    date: "2025-01-15",
-    time: "16:00",
-    notes: "Dolor pulsátil en la sien derecha",
-    duration: "3 horas",
-    triggers: ["Estrés"],
-  },
-  {
-    id: 4,
-    symptom: "Pérdida de apetito",
-    severity: "Moderada",
-    date: "2025-01-14",
-    time: "12:00",
-    notes: "No tengo ganas de comer desde ayer",
-    duration: "Todo el día",
-    triggers: ["Medicamento"],
-  },
-  {
-    id: 5,
-    symptom: "Insomnio",
-    severity: "Severa",
-    date: "2025-01-13",
-    time: "23:00",
-    notes: "No pude dormir hasta las 3 AM",
-    duration: "4 horas",
-    triggers: ["Ansiedad"],
-  },
-]
-
-const mockSymptomStats = {
-  totalSymptoms: 15,
-  thisWeek: 5,
-  mostCommon: "Fatiga",
-  averageSeverity: "Moderada",
-}
-
-export default function SintomasPage() {
+export default function SymptomsPage() {
+  const { user } = useAuthContext()
+  const [patientProfileId, setPatientProfileId] = useState<number | null>(null)
+  const [symptomsList, setSymptomsList] = useState<SymptomResponse[]>([])
+  const [filteredSymptoms, setFilteredSymptoms] = useState<SymptomResponse[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [severityFilter, setSeverityFilter] = useState("all")
-  const [dateFilter, setDateFilter] = useState<Date>()
+  const [dateFilter, setDateFilter] = useState("all")
 
-  const filteredSymptoms = mockSymptoms.filter((symptom) => {
-    const matchesSearch =
-      symptom.symptom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      symptom.notes.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesSeverity = severityFilter === "all" || symptom.severity === severityFilter
-    const matchesDate = !dateFilter || symptom.date === format(dateFilter, "yyyy-MM-dd")
-    return matchesSearch && matchesSeverity && matchesDate
-  })
+  useEffect(() => {
+    if (user && isPatientUser(user)) {
+      setPatientProfileId(user.profile.id)
+    }
+  }, [user])
+
+  useEffect(() => {
+    const loadSymptoms = async () => {
+      if (!patientProfileId) return
+      
+      try {
+        setIsLoading(true)
+        setError(null)
+        
+        const data = await symptoms.getAll(patientProfileId)
+        
+        // Sort by occurrence date (most recent first)
+        data.sort((a, b) => new Date(b.occurrenceDate).getTime() - new Date(a.occurrenceDate).getTime())
+        
+        setSymptomsList(data)
+        setFilteredSymptoms(data)
+      } catch (err) {
+        console.error('Error loading symptoms:', err)
+        setError('Error al cargar los síntomas')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadSymptoms()
+  }, [patientProfileId])
+
+  useEffect(() => {
+    let filtered = symptomsList
+
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(symptom =>
+        symptom.symptomName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        symptom.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        symptom.triggers?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    // Filter by severity
+    if (severityFilter !== "all") {
+      filtered = filtered.filter(symptom => symptom.severity === severityFilter)
+    }
+
+    // Filter by date
+    if (dateFilter !== "all") {
+      const today = new Date()
+      filtered = filtered.filter(symptom => {
+        const symptomDate = new Date(symptom.occurrenceDate)
+        switch (dateFilter) {
+          case "today":
+            return symptomDate.toDateString() === today.toDateString()
+          case "yesterday":
+            const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000)
+            return symptomDate.toDateString() === yesterday.toDateString()
+          case "thisWeek":
+            const weekStart = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+            return symptomDate >= weekStart && symptomDate <= today
+          case "thisMonth":
+            const monthStart = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
+            return symptomDate >= monthStart && symptomDate <= today
+          default:
+            return true
+        }
+      })
+    }
+
+    setFilteredSymptoms(filtered)
+  }, [symptomsList, searchTerm, severityFilter, dateFilter])
 
   const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case "Leve":
-        return "bg-primary/10 text-primary border-primary/20"
-      case "Moderada":
-        return "bg-secondary/10 text-secondary border-secondary/20"
-      case "Severa":
-        return "bg-destructive/10 text-destructive border-destructive/20"
+    switch (severity?.toLowerCase()) {
+      case 'crítico':
+        return 'bg-secondary/20 text-secondary-foreground border-secondary/30'
+      case 'severo':
+        return 'bg-secondary/10 text-secondary-foreground border-secondary/20'
+      case 'moderado':
+        return 'bg-primary/20 text-primary-foreground border-primary/30'
+      case 'leve':
+        return 'bg-primary/10 text-primary-foreground border-primary/20'
       default:
-        return "bg-muted text-muted-foreground"
+        return 'bg-muted text-muted-foreground border-muted'
     }
   }
 
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case "Severa":
-        return <AlertTriangle className="h-4 w-4" />
+  const getSeverityText = (severity: string) => {
+    switch (severity?.toLowerCase()) {
+      case 'crítico':
+        return 'Crítico'
+      case 'severo':
+        return 'Severo'
+      case 'moderado':
+        return 'Moderado'
+      case 'leve':
+        return 'Leve'
       default:
-        return <Activity className="h-4 w-4" />
+        return severity || 'N/A'
     }
+  }
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('es-ES', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+  }
+
+  const formatTime = (timeString: string) => {
+    const time = new Date(`2000-01-01T${timeString}`)
+    return time.toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const criticalSymptoms = filteredSymptoms.filter(s => s.requiresMedicalAttention)
+  const reportedToDoctor = filteredSymptoms.filter(s => s.reportedToDoctor)
+
+  if (isLoading) {
+    return (
+      <AuthGuard requiredRole="PATIENT">
+        <DashboardLayout>
+          <Loading message="Cargando síntomas..." />
+        </DashboardLayout>
+      </AuthGuard>
+    )
+  }
+
+  if (error) {
+    return (
+      <AuthGuard requiredRole="PATIENT">
+        <DashboardLayout>
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <p className="text-destructive mb-4">{error}</p>
+              <Button onClick={() => window.location.reload()}>
+                Reintentar
+              </Button>
+            </div>
+          </div>
+        </DashboardLayout>
+      </AuthGuard>
+    )
   }
 
   return (
-    <AuthGuard requiredUserType="paciente">
-      <DashboardLayout userType="paciente">
+    <AuthGuard requiredRole="PATIENT">
+      <DashboardLayout>
         <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Registro de Síntomas</h1>
-              <p className="text-muted-foreground">Lleva un seguimiento detallado de tus síntomas</p>
+              <h1 className="text-3xl font-bold text-foreground">Mis Síntomas</h1>
+              <p className="text-muted-foreground">
+                Registro y seguimiento de síntomas ({filteredSymptoms.length} síntomas)
+              </p>
             </div>
-            <div className="flex gap-3">
-              <Button variant="outline" asChild>
-                <Link href="/dashboard/paciente/sintomas/nuevo">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Reportar Síntoma Completo
-                </Link>
-              </Button>
-              <Button className="oncontrol-gradient text-white" asChild>
-                <Link href="/dashboard/paciente/sintomas/nuevo">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Reportar Síntoma
-                </Link>
-              </Button>
-            </div>
+            <Button asChild>
+              <Link href="/dashboard/paciente/sintomas/nuevo">
+                <Plus className="mr-2 h-4 w-4" />
+                Reportar Síntoma
+              </Link>
+            </Button>
           </div>
 
-          {/* Quick Symptom Report */}
-          <Card className="bg-gradient-to-r from-primary/5 to-secondary/5 border-primary/20">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5 text-primary" />
-                Reporte Rápido de Síntoma
-              </CardTitle>
-              <CardDescription>Registra un síntoma común de forma rápida</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Critical Alerts */}
+          {criticalSymptoms.length > 0 && (
+            <Card className="border-secondary/30 bg-secondary/10">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-secondary-foreground">
+                  <AlertTriangle className="h-5 w-5" />
+                  Atención Médica Requerida
+                </CardTitle>
+                <CardDescription className="text-secondary font-semibold">
+                  Tienes {criticalSymptoms.length} síntoma(s) que requieren atención médica inmediata
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-2">
-                  <Label htmlFor="quick-symptom">Síntoma</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un síntoma" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="fatiga">Fatiga</SelectItem>
-                      <SelectItem value="nauseas">Náuseas</SelectItem>
-                      <SelectItem value="dolor-cabeza">Dolor de cabeza</SelectItem>
-                      <SelectItem value="dolor-muscular">Dolor muscular</SelectItem>
-                      <SelectItem value="fiebre">Fiebre</SelectItem>
-                      <SelectItem value="perdida-apetito">Pérdida de apetito</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {criticalSymptoms.slice(0, 3).map((symptom) => (
+                    <div key={symptom.id} className="flex items-center justify-between p-2 bg-white rounded border">
+                      <div>
+                        <p className="font-medium">{symptom.symptomName}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDate(symptom.occurrenceDate)} a las {formatTime(symptom.occurrenceTime)}
+                        </p>
+                      </div>
+                      <Badge className={getSeverityColor(symptom.severity)}>
+                        {getSeverityText(symptom.severity)}
+                      </Badge>
+                    </div>
+                  ))}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="quick-severity">Severidad</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Nivel de severidad" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="leve">Leve</SelectItem>
-                      <SelectItem value="moderada">Moderada</SelectItem>
-                      <SelectItem value="severa">Severa</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="quick-time">Hora</Label>
-                  <Input type="time" />
-                </div>
-              </div>
-              <div className="flex justify-end mt-4">
-                <Button size="sm" className="oncontrol-gradient text-white">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Registrar Rápidamente
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                {criticalSymptoms.length > 3 && (
+                  <p className="text-sm text-secondary font-semibold mt-2">
+                    Y {criticalSymptoms.length - 3} más...
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-primary">{mockSymptomStats.totalSymptoms}</div>
-                <p className="text-sm text-muted-foreground">Total registrados</p>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Total Síntomas</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{symptomsList.length}</div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="p-4">
-                <div className="text-2xl font-bold text-secondary">{mockSymptomStats.thisWeek}</div>
-                <p className="text-sm text-muted-foreground">Esta semana</p>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Críticos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-secondary">{criticalSymptoms.length}</div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="p-4">
-                <div className="text-lg font-bold text-accent">{mockSymptomStats.mostCommon}</div>
-                <p className="text-sm text-muted-foreground">Más frecuente</p>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Reportados al Doctor</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{reportedToDoctor.length}</div>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="p-4">
-                <div className="text-lg font-bold text-destructive">{mockSymptomStats.averageSeverity}</div>
-                <p className="text-sm text-muted-foreground">Severidad promedio</p>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Esta Semana</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {symptomsList.filter(s => {
+                    const symptomDate = new Date(s.occurrenceDate)
+                    const weekStart = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                    return symptomDate >= weekStart
+                  }).length}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -226,142 +285,133 @@ export default function SintomasPage() {
             <CardHeader>
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-1">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Buscar síntomas o notas..."
+                    placeholder="Buscar por nombre, notas o desencadenantes..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
                   />
                 </div>
-                <div className="flex gap-2">
-                  <Select value={severityFilter} onValueChange={setSeverityFilter}>
-                    <SelectTrigger className="w-[150px]">
-                      <Filter className="mr-2 h-4 w-4" />
-                      <SelectValue placeholder="Severidad" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">Todas</SelectItem>
-                      <SelectItem value="Leve">Leve</SelectItem>
-                      <SelectItem value="Moderada">Moderada</SelectItem>
-                      <SelectItem value="Severa">Severa</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="w-[150px] justify-start bg-transparent">
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dateFilter ? format(dateFilter, "dd/MM/yyyy") : "Fecha"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={dateFilter} onSelect={setDateFilter} locale={es} initialFocus />
-                    </PopoverContent>
-                  </Popover>
-                  {dateFilter && (
-                    <Button variant="outline" onClick={() => setDateFilter(undefined)}>
-                      Limpiar
-                    </Button>
-                  )}
-                </div>
+                <Select value={severityFilter} onValueChange={setSeverityFilter}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Filtrar por severidad" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas</SelectItem>
+                    <SelectItem value="Leve">Leve</SelectItem>
+                    <SelectItem value="Moderado">Moderado</SelectItem>
+                    <SelectItem value="Severo">Severo</SelectItem>
+                    <SelectItem value="Crítico">Crítico</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={dateFilter} onValueChange={setDateFilter}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <SelectValue placeholder="Filtrar por fecha" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las fechas</SelectItem>
+                    <SelectItem value="today">Hoy</SelectItem>
+                    <SelectItem value="yesterday">Ayer</SelectItem>
+                    <SelectItem value="thisWeek">Esta semana</SelectItem>
+                    <SelectItem value="thisMonth">Este mes</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardHeader>
           </Card>
 
-          {/* Symptoms List */}
-          <div className="grid gap-4">
-            {filteredSymptoms.map((symptom) => (
-              <Card key={symptom.id} className="oncontrol-hover-lift">
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center">
-                        {getSeverityIcon(symptom.severity)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-lg font-semibold">{symptom.symptom}</h3>
-                          <Badge className={getSeverityColor(symptom.severity)}>{symptom.severity}</Badge>
-                        </div>
-                        <p className="text-muted-foreground mb-3">{symptom.notes}</p>
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>📅 {new Date(symptom.date).toLocaleDateString("es-PE")}</span>
-                          <span>🕐 {symptom.time}</span>
-                          <span>⏱️ Duración: {symptom.duration}</span>
-                        </div>
-                        {symptom.triggers.length > 0 && (
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-sm text-muted-foreground">Posibles causas:</span>
-                            {symptom.triggers.map((trigger, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {trigger}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <Button variant="outline" size="sm">
-                      Editar
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {filteredSymptoms.length === 0 && (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No se encontraron síntomas</h3>
-                <p className="text-muted-foreground mb-4">
-                  No hay síntomas que coincidan con los filtros seleccionados.
-                </p>
-                <Button asChild>
-                  <Link href="/dashboard/paciente/sintomas/nuevo">
-                    <Plus className="mr-2 h-4 w-4" />
-                    Reportar Primer Síntoma
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Quick Insights */}
+          {/* Symptoms Table */}
           <Card>
             <CardHeader>
-              <CardTitle>Resumen de Síntomas</CardTitle>
-              <CardDescription>Análisis de tus síntomas recientes</CardDescription>
+              <CardTitle>Registro de Síntomas</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <TrendingUp className="h-8 w-8 text-primary" />
-                  </div>
-                  <h4 className="font-semibold mb-1">Tendencia</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Los síntomas han disminuido un 20% esta semana comparado con la anterior
+              {filteredSymptoms.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground mb-4">
+                    {searchTerm || severityFilter !== "all" || dateFilter !== "all"
+                      ? "No se encontraron síntomas con los filtros aplicados" 
+                      : "No has reportado síntomas aún"}
                   </p>
+                  {!searchTerm && severityFilter === "all" && dateFilter === "all" && (
+                    <Button asChild>
+                      <Link href="/dashboard/paciente/sintomas/nuevo">
+                        <Plus className="mr-2 h-4 w-4" />
+                        Reportar Primer Síntoma
+                      </Link>
+                    </Button>
+                  )}
                 </div>
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-secondary/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Activity className="h-8 w-8 text-secondary" />
-                  </div>
-                  <h4 className="font-semibold mb-1">Patrón</h4>
-                  <p className="text-sm text-muted-foreground">
-                    La mayoría de síntomas ocurren después de los tratamientos
-                  </p>
-                </div>
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <AlertTriangle className="h-8 w-8 text-accent" />
-                  </div>
-                  <h4 className="font-semibold mb-1">Recomendación</h4>
-                  <p className="text-sm text-muted-foreground">
-                    Considera hablar con tu doctor sobre el manejo de la fatiga
-                  </p>
-                </div>
-              </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Síntoma</TableHead>
+                      <TableHead>Severidad</TableHead>
+                      <TableHead>Fecha y Hora</TableHead>
+                      <TableHead>Duración</TableHead>
+                      <TableHead>Requiere Atención</TableHead>
+                      <TableHead>Reportado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredSymptoms.map((symptom) => (
+                      <TableRow key={symptom.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{symptom.symptomName}</p>
+                            {symptom.notes && (
+                              <p className="text-sm text-muted-foreground truncate max-w-[200px]">
+                                {symptom.notes}
+                              </p>
+                            )}
+                            {symptom.triggers && (
+                              <p className="text-xs text-muted-foreground">
+                                Desencadenantes: {symptom.triggers}
+                              </p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={getSeverityColor(symptom.severity)}>
+                            {getSeverityText(symptom.severity)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{formatDate(symptom.occurrenceDate)}</p>
+                            <p className="text-sm text-muted-foreground flex items-center">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {formatTime(symptom.occurrenceTime)}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {symptom.durationHours ? `${symptom.durationHours}h` : 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            {symptom.requiresMedicalAttention ? (
+                              <>
+                                <AlertTriangle className="h-4 w-4 text-secondary mr-1" />
+                                <span className="text-secondary font-medium">Sí</span>
+                              </>
+                            ) : (
+                              <span className="text-primary">No</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={symptom.reportedToDoctor ? "default" : "secondary"}>
+                            {symptom.reportedToDoctor ? "Sí" : "No"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </div>

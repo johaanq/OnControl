@@ -1,54 +1,111 @@
 "use client"
 
-import { useState } from "react"
-import { AuthGuard } from "@/components/auth-guard"
+import { useState, useEffect } from "react"
+import { AuthGuard } from "@/components/auth-guard-updated"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Loading } from "@/components/loading"
+import { useAuthContext } from "@/contexts/auth-context"
+import { treatments } from "@/lib/api"
+import type { TreatmentResponse, TreatmentSessionResponse } from "@/lib/api"
+import { isPatientUser } from "@/types/organization"
 import { Calendar, Clock, Pill, Activity, AlertCircle, CheckCircle, Heart } from "lucide-react"
 
-// Mock data para el tratamiento del paciente
-const mockTratamiento = {
-  id: 1,
-  tipo: "Quimioterapia",
-  protocolo: "FOLFOX",
-  cicloActual: 3,
-  ciclosTotal: 6,
-  fechaInicio: "2024-01-15",
-  proximaSesion: "2024-02-15",
-  estado: "activo",
-  progreso: 50,
-  medicamentos: [
-    { nombre: "Oxaliplatino", dosis: "85 mg/m²", frecuencia: "Cada 2 semanas" },
-    { nombre: "5-Fluorouracilo", dosis: "400 mg/m²", frecuencia: "Cada 2 semanas" },
-    { nombre: "Leucovorina", dosis: "200 mg/m²", frecuencia: "Cada 2 semanas" },
-  ],
-  efectosSecundarios: [
-    { nombre: "Nauseas", severidad: "leve", fecha: "2024-02-10" },
-    { nombre: "Fatiga", severidad: "moderada", fecha: "2024-02-08" },
-  ],
-  proximasCitas: [
-    { fecha: "2024-02-15", tipo: "Quimioterapia", hora: "09:00" },
-    { fecha: "2024-02-20", tipo: "Control", hora: "14:30" },
-    { fecha: "2024-03-01", tipo: "Quimioterapia", hora: "09:00" },
-  ],
+const tipoNames: Record<string, string> = {
+  CHEMOTHERAPY: "Quimioterapia",
+  RADIOTHERAPY: "Radioterapia",
+  IMMUNOTHERAPY: "Inmunoterapia",
+  SURGERY: "Cirugía",
+  HORMONE_THERAPY: "Terapia Hormonal",
+  TARGETED_THERAPY: "Terapia Dirigida"
 }
 
-const severidadColors = {
-  leve: "bg-green-100 text-green-800",
-  moderada: "bg-yellow-100 text-yellow-800",
-  severa: "bg-red-100 text-red-800",
+const estadoNames: Record<string, string> = {
+  ACTIVE: "Activo",
+  PAUSED: "Pausado",
+  COMPLETED: "Completado",
+  SUSPENDED: "Suspendido"
 }
 
 export default function TratamientoPacientePage() {
+  const { user } = useAuthContext()
+  const [patientProfileId, setPatientProfileId] = useState<number | null>(null)
+  const [treatment, setTreatment] = useState<TreatmentResponse | null>(null)
+  const [upcomingSessions, setUpcomingSessions] = useState<TreatmentSessionResponse[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState("resumen")
 
+  useEffect(() => {
+    if (user && isPatientUser(user)) {
+      setPatientProfileId(user.profile.id)
+    }
+  }, [user])
+
+  useEffect(() => {
+    const loadTreatment = async () => {
+      if (!patientProfileId) return
+
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        const [currentTreatment, sessions] = await Promise.all([
+          treatments.getPatientCurrent(patientProfileId),
+          treatments.getUpcomingSessions(patientProfileId)
+        ])
+
+        setTreatment(currentTreatment)
+        setUpcomingSessions(sessions)
+      } catch (err) {
+        console.error('Error loading treatment:', err)
+        setError('Error al cargar el tratamiento')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadTreatment()
+  }, [patientProfileId])
+
+  if (isLoading) {
+    return (
+      <AuthGuard requiredRole="PATIENT">
+        <DashboardLayout>
+          <Loading message="Cargando tratamiento..." />
+        </DashboardLayout>
+      </AuthGuard>
+    )
+  }
+
+  if (error || !treatment) {
+    return (
+      <AuthGuard requiredRole="PATIENT">
+        <DashboardLayout>
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <p className="text-muted-foreground mb-4">
+                {error || "No tienes un tratamiento activo en este momento"}
+              </p>
+              {error && (
+                <Button onClick={() => window.location.reload()}>
+                  Reintentar
+                </Button>
+              )}
+            </div>
+          </div>
+        </DashboardLayout>
+      </AuthGuard>
+    )
+  }
+
   return (
-    <AuthGuard requiredUserType="paciente">
-      <DashboardLayout userType="paciente">
+    <AuthGuard requiredRole="PATIENT">
+      <DashboardLayout>
         <div className="space-y-6">
       {/* Header */}
       <div>
@@ -61,10 +118,12 @@ export default function TratamientoPacientePage() {
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-xl font-semibold text-teal-900">{mockTratamiento.protocolo}</h2>
-              <p className="text-teal-700">{mockTratamiento.tipo}</p>
+              <h2 className="text-xl font-semibold text-teal-900">{treatment.protocol}</h2>
+              <p className="text-teal-700">{tipoNames[treatment.type] || treatment.type}</p>
             </div>
-            <Badge className="bg-teal-600 text-white">{mockTratamiento.estado}</Badge>
+            <Badge className="bg-teal-600 text-white">
+              {estadoNames[treatment.status] || treatment.status}
+            </Badge>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -72,23 +131,25 @@ export default function TratamientoPacientePage() {
               <div className="mt-2">
                 <div className="flex justify-between text-sm text-teal-600 mb-1">
                   <span>
-                    Ciclo {mockTratamiento.cicloActual} de {mockTratamiento.ciclosTotal}
+                    Ciclo {treatment.currentCycle} de {treatment.totalCycles}
                   </span>
-                  <span>{mockTratamiento.progreso}%</span>
+                  <span>{treatment.progressPercentage}%</span>
                 </div>
-                <Progress value={mockTratamiento.progreso} className="h-2" />
+                <Progress value={treatment.progressPercentage} className="h-2" />
               </div>
             </div>
             <div>
               <p className="text-sm font-medium text-teal-700">Fecha de Inicio</p>
               <p className="text-teal-900 font-semibold">
-                {new Date(mockTratamiento.fechaInicio).toLocaleDateString()}
+                {new Date(treatment.startDate).toLocaleDateString('es-ES')}
               </p>
             </div>
             <div>
               <p className="text-sm font-medium text-teal-700">Próxima Sesión</p>
               <p className="text-teal-900 font-semibold">
-                {new Date(mockTratamiento.proximaSesion).toLocaleDateString()}
+                {treatment.nextSession 
+                  ? new Date(treatment.nextSession).toLocaleDateString('es-ES')
+                  : 'Por programar'}
               </p>
             </div>
           </div>
@@ -100,7 +161,7 @@ export default function TratamientoPacientePage() {
           <TabsTrigger value="resumen">Resumen</TabsTrigger>
           <TabsTrigger value="medicamentos">Medicamentos</TabsTrigger>
           <TabsTrigger value="efectos">Efectos</TabsTrigger>
-          <TabsTrigger value="citas">Próximas Citas</TabsTrigger>
+          <TabsTrigger value="sesiones">Sesiones</TabsTrigger>
         </TabsList>
 
         <TabsContent value="resumen" className="space-y-4">
@@ -117,17 +178,31 @@ export default function TratamientoPacientePage() {
                   <div className="flex justify-between">
                     <span className="text-gray-600">Ciclo Actual:</span>
                     <span className="font-semibold">
-                      {mockTratamiento.cicloActual}/{mockTratamiento.ciclosTotal}
+                      {treatment.currentCycle}/{treatment.totalCycles}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Progreso:</span>
-                    <span className="font-semibold">{mockTratamiento.progreso}%</span>
+                    <span className="font-semibold">{treatment.progressPercentage}%</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Estado:</span>
-                    <Badge className="bg-green-100 text-green-800">Activo</Badge>
+                    <span className="text-muted-foreground">Estado:</span>
+                    <Badge className="bg-primary/20 text-primary-foreground">
+                      {estadoNames[treatment.status] || treatment.status}
+                    </Badge>
                   </div>
+                  {treatment.effectiveness && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Efectividad:</span>
+                      <span className="font-semibold">{treatment.effectiveness.toFixed(1)}%</span>
+                    </div>
+                  )}
+                  {treatment.adherence && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Adherencia:</span>
+                      <span className="font-semibold">{treatment.adherence.toFixed(1)}%</span>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -135,57 +210,62 @@ export default function TratamientoPacientePage() {
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-orange-600" />
-                  Próxima Cita
+                  <Calendar className="w-5 h-5 text-secondary" />
+                  Información Adicional
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  <p className="text-lg font-semibold text-gray-900">
-                    {new Date(mockTratamiento.proximaSesion).toLocaleDateString()}
-                  </p>
-                  <p className="text-gray-600">Quimioterapia - 09:00 AM</p>
-                  <Button size="sm" className="mt-2 bg-orange-600 hover:bg-orange-700">
-                    Ver Detalles
-                  </Button>
+                <div className="space-y-3">
+                  {treatment.location && (
+                    <div>
+                      <p className="text-sm text-gray-600">Ubicación:</p>
+                      <p className="font-semibold">{treatment.location}</p>
+                    </div>
+                  )}
+                  {treatment.sessionDurationMinutes && (
+                    <div>
+                      <p className="text-sm text-gray-600">Duración de sesión:</p>
+                      <p className="font-semibold">{treatment.sessionDurationMinutes} minutos</p>
+                    </div>
+                  )}
+                  {treatment.doctorName && (
+                    <div>
+                      <p className="text-sm text-gray-600">Tu médico:</p>
+                      <p className="font-semibold">{treatment.doctorName}</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Heart className="w-5 h-5 text-pink-600" />
-                Recomendaciones
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
-                  <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-blue-900">Hidratación</p>
-                    <p className="text-sm text-blue-700">Bebe al menos 2 litros de agua al día</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
-                  <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-green-900">Descanso</p>
-                    <p className="text-sm text-green-700">Mantén un horario regular de sueño de 7-8 horas</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg">
-                  <AlertCircle className="w-5 h-5 text-orange-600 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-orange-900">Alimentación</p>
-                    <p className="text-sm text-orange-700">Evita alimentos crudos y mantén una dieta balanceada</p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {treatment.notes && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Heart className="w-5 h-5 text-pink-600" />
+                  Notas del Médico
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-700">{treatment.notes}</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {treatment.preparationInstructions && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-secondary" />
+                  Instrucciones de Preparación
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-700">{treatment.preparationInstructions}</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="medicamentos" className="space-y-4">
@@ -198,26 +278,22 @@ export default function TratamientoPacientePage() {
               <CardDescription>Medicamentos que forman parte de tu tratamiento actual</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {mockTratamiento.medicamentos.map((medicamento, index) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-semibold text-gray-900">{medicamento.nombre}</h3>
-                      <Badge variant="outline">Activo</Badge>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                      <div>
-                        <p className="font-medium">Dosis:</p>
-                        <p>{medicamento.dosis}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium">Frecuencia:</p>
-                        <p>{medicamento.frecuencia}</p>
+              {treatment.medications.length > 0 ? (
+                <div className="space-y-4">
+                  {treatment.medications.map((medicamento, index) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold text-gray-900">{medicamento}</h3>
+                        <Badge variant="outline">Activo</Badge>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-4">
+                  No hay medicamentos registrados para este tratamiento
+                </p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -226,64 +302,78 @@ export default function TratamientoPacientePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-orange-600" />
+                <AlertCircle className="w-5 h-5 text-secondary" />
                 Efectos Secundarios Registrados
               </CardTitle>
               <CardDescription>Efectos secundarios que has experimentado durante el tratamiento</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {mockTratamiento.efectosSecundarios.map((efecto, index) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <h3 className="font-semibold text-gray-900">{efecto.nombre}</h3>
-                      <Badge className={severidadColors[efecto.severidad as keyof typeof severidadColors]}>
-                        {efecto.severidad}
-                      </Badge>
+              {treatment.sideEffects.length > 0 ? (
+                <div className="space-y-4">
+                  {treatment.sideEffects.map((efecto, index) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <h3 className="font-semibold text-gray-900">{efecto}</h3>
                     </div>
-                    <p className="text-sm text-gray-600">Registrado el {new Date(efecto.fecha).toLocaleDateString()}</p>
-                  </div>
-                ))}
-              </div>
-              <Button className="mt-4 bg-orange-600 hover:bg-orange-700">Reportar Nuevo Efecto</Button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-4">
+                  No hay efectos secundarios registrados
+                </p>
+              )}
+              <Button variant="secondary" className="mt-4" asChild>
+                <a href="/dashboard/paciente/sintomas/nuevo">Reportar Nuevo Síntoma</a>
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="citas" className="space-y-4">
+        <TabsContent value="sesiones" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-teal-600" />
-                Próximas Citas del Tratamiento
+                Próximas Sesiones
               </CardTitle>
-              <CardDescription>Citas programadas relacionadas con tu tratamiento</CardDescription>
+              <CardDescription>Sesiones programadas de tu tratamiento</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {mockTratamiento.proximasCitas.map((cita, index) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{cita.tipo}</h3>
-                        <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            {new Date(cita.fecha).toLocaleDateString()}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            {cita.hora}
-                          </span>
+              {upcomingSessions.length > 0 ? (
+                <div className="space-y-4">
+                  {upcomingSessions.map((session) => (
+                    <div key={session.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <h3 className="font-semibold text-gray-900">
+                            Sesión #{session.sessionNumber} - Ciclo {session.cycleNumber}
+                          </h3>
+                          <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-4 h-4" />
+                              {new Date(session.sessionDate).toLocaleDateString('es-ES')}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              {new Date(session.sessionDate).toLocaleTimeString('es-ES', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </span>
+                          </div>
+                          {session.location && (
+                            <p className="text-sm text-gray-600 mt-1">{session.location}</p>
+                          )}
                         </div>
+                        <Badge variant="outline">{session.status}</Badge>
                       </div>
-                      <Button variant="outline" size="sm">
-                        Ver Detalles
-                      </Button>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-4">
+                  No hay sesiones próximas programadas
+                </p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

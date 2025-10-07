@@ -1,175 +1,197 @@
 "use client"
 
-import { useState } from "react"
-import { AuthGuard } from "@/components/auth-guard"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { AuthGuard } from "@/components/auth-guard-updated"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useAuthContext } from "@/contexts/auth-context"
+import { appointments } from "@/lib/api"
+import type { AppointmentType, CreateAppointmentRequest } from "@/lib/api"
+import { isPatientUser } from "@/types/organization"
 import { 
   Calendar as CalendarIcon, 
   Clock, 
   User, 
   ArrowLeft, 
   Save, 
-  Info
+  Info,
+  CheckCircle
 } from "lucide-react"
 import { format, addDays, isBefore, startOfDay } from "date-fns"
 import { es } from "date-fns/locale"
 import Link from "next/link"
 
-// Appointment types and doctors
-const appointmentTypes = [
-  { value: "consulta-seguimiento", label: "Consulta de Seguimiento", description: "Revisión médica de rutina", duration: 30 },
-  { value: "consulta-urgencia", label: "Consulta de Urgencia", description: "Atención médica urgente", duration: 45 },
-  { value: "revision-examenes", label: "Revisión de Exámenes", description: "Revisión de resultados de laboratorio", duration: 20 },
-  { value: "consulta-nutricion", label: "Consulta Nutricional", description: "Asesoramiento nutricional", duration: 30 },
-  { value: "consulta-psicologica", label: "Consulta Psicológica", description: "Apoyo psicológico", duration: 60 },
-  { value: "consulta-dolor", label: "Consulta de Manejo del Dolor", description: "Evaluación y manejo del dolor", duration: 45 },
-  { value: "consulta-general", label: "Consulta General", description: "Consulta médica general", duration: 30 },
-  { value: "otro", label: "Otro", description: "Otro tipo de consulta", duration: 30 }
-]
-
-const availableDoctors = [
-  {
-    id: 1,
-    name: "Dr. Carlos Mendoza",
-    specialty: "Oncología Médica",
-    avatar: "/hombre-62-a-os-profesional.jpg",
-    availableDays: ["lunes", "martes", "miércoles", "jueves", "viernes"],
-    availableHours: ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"]
-  },
-  {
-    id: 2,
-    name: "Dr. Ana Martínez",
-    specialty: "Radiología",
-    avatar: "/hombre-62-a-os-profesional.jpg",
-    availableDays: ["lunes", "miércoles", "viernes"],
-    availableHours: ["08:00", "09:00", "10:00", "11:00", "14:00", "15:00"]
-  },
-  {
-    id: 3,
-    name: "Dr. Luis Rodríguez",
-    specialty: "Nutrición Clínica",
-    avatar: "/hombre-62-a-os-profesional.jpg",
-    availableDays: ["martes", "jueves"],
-    availableHours: ["09:00", "10:00", "11:00", "15:00", "16:00"]
-  },
-  {
-    id: 4,
-    name: "Dra. María González",
-    specialty: "Psicología Oncológica",
-    avatar: "/mujer-45-a-os-sonriente-paciente-oncolog-a.jpg",
-    availableDays: ["lunes", "miércoles", "viernes"],
-    availableHours: ["10:00", "11:00", "14:00", "15:00", "16:00"]
-  }
+const appointmentTypes: { value: AppointmentType; label: string; description: string; duration: number }[] = [
+  { value: "PRIMERA_CONSULTA", label: "Primera Consulta", description: "Consulta inicial con el médico", duration: 60 },
+  { value: "CONSULTA_SEGUIMIENTO", label: "Consulta de Seguimiento", description: "Revisión médica de rutina", duration: 30 },
+  { value: "REVISION_TRATAMIENTO", label: "Revisión de Tratamiento", description: "Evaluación del tratamiento actual", duration: 45 },
+  { value: "REVISION_EXAMENES", label: "Revisión de Exámenes", description: "Revisión de resultados de laboratorio", duration: 20 },
+  { value: "CONSULTA_URGENCIA", label: "Consulta de Urgencia", description: "Atención médica urgente", duration: 45 },
+  { value: "CONSULTA_POST_OPERATORIA", label: "Consulta Post-Operatoria", description: "Seguimiento después de cirugía", duration: 30 },
+  { value: "SESION_QUIMIOTERAPIA", label: "Sesión de Quimioterapia", description: "Sesión de quimioterapia programada", duration: 180 },
+  { value: "EXAMENES_LABORATORIO", label: "Exámenes de Laboratorio", description: "Toma de muestras de laboratorio", duration: 15 },
+  { value: "CONSULTA_NUTRICION", label: "Consulta Nutricional", description: "Asesoramiento nutricional", duration: 30 },
+  { value: "CONSULTA_PSICOLOGICA", label: "Consulta Psicológica", description: "Apoyo psicológico", duration: 60 },
+  { value: "CONSULTA_DOLOR", label: "Consulta de Manejo del Dolor", description: "Evaluación y manejo del dolor", duration: 45 },
+  { value: "CONSULTA_GENERAL", label: "Consulta General", description: "Consulta médica general", duration: 30 },
+  { value: "OTRO", label: "Otro", description: "Otro tipo de consulta", duration: 30 }
 ]
 
 const locations = [
-  "Consultorio 205 - Oncología",
-  "Consultorio 210 - Radiología", 
-  "Consultorio 215 - Nutrición",
-  "Consultorio 220 - Psicología",
-  "Sala de Infusiones",
-  "Laboratorio Clínico",
-  "Otro"
+  "Consultorio 101 - Piso 1",
+  "Consultorio 102 - Piso 1",
+  "Consultorio 201 - Piso 2",
+  "Consultorio 202 - Piso 2",
+  "Sala de Infusiones - Piso 3",
+  "Laboratorio Clínico - Piso 1",
+  "Sala de Procedimientos",
+  "Consultorio Virtual",
+  "Urgencias",
+  "Hospital Principal"
 ]
 
 export default function NuevaCitaPage() {
+  const { user } = useAuthContext()
+  const router = useRouter()
+  const [patientProfileId, setPatientProfileId] = useState<number | null>(null)
+  const [doctorProfileId, setDoctorProfileId] = useState<number | null>(null)
+  const [doctorName, setDoctorName] = useState<string>("")
+  
   const [formData, setFormData] = useState({
-    appointmentType: "",
-    doctor: "",
-    date: addDays(new Date(), 1), // Tomorrow by default
+    type: "" as AppointmentType | "",
+    date: undefined as Date | undefined,
     time: "",
+    durationMinutes: 30,
     location: "",
-    reason: "",
-    symptoms: "",
-    urgency: "normal",
-    preferredContact: "telefono",
     notes: "",
-    customType: "",
-    customLocation: ""
+    preparationInstructions: ""
   })
 
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showCustomType, setShowCustomType] = useState(false)
-  const [showCustomLocation, setShowCustomLocation] = useState(false)
-  const [selectedDoctor, setSelectedDoctor] = useState<typeof availableDoctors[0] | null>(null)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState(false)
 
-  const handleInputChange = (field: string, value: string | Date) => {
+  useEffect(() => {
+    if (user && isPatientUser(user)) {
+      setPatientProfileId(user.profile.id)
+      setDoctorProfileId(user.profile.doctorProfileId)
+      setDoctorName(user.profile.doctorName || "Tu médico")
+    }
+  }, [user])
+
+  const handleInputChange = (field: string, value: string | Date | number) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }))
 
-    // Update doctor when appointment type changes
-    if (field === "appointmentType") {
-      const doctor = availableDoctors.find(d => 
-        d.specialty.toLowerCase().includes(value.toString().toLowerCase()) ||
-        value.toString().includes(d.specialty.toLowerCase())
-      )
-      if (doctor) {
-        setSelectedDoctor(doctor)
-        setFormData(prev => ({ ...prev, doctor: doctor.id.toString() }))
+    // Update duration when appointment type changes
+    if (field === "type") {
+      const selectedType = appointmentTypes.find(t => t.value === value)
+      if (selectedType) {
+        setFormData(prev => ({ ...prev, durationMinutes: selectedType.duration }))
       }
     }
   }
 
-  const handleDoctorChange = (doctorId: string) => {
-    const doctor = availableDoctors.find(d => d.id.toString() === doctorId)
-    setSelectedDoctor(doctor || null)
-    setFormData(prev => ({ ...prev, doctor: doctorId }))
-  }
-
-  const getAvailableTimes = () => {
-    if (!selectedDoctor || !formData.date) return []
-    
-    const dayName = format(formData.date, "EEEE", { locale: es }).toLowerCase()
-    const isAvailableDay = selectedDoctor.availableDays.includes(dayName)
-    
-    if (!isAvailableDay) return []
-    
-    return selectedDoctor.availableHours
-  }
-
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!patientProfileId || !doctorProfileId) {
+      setError("No se pudo identificar al paciente o al doctor")
+      return
+    }
+
+    if (!formData.type || !formData.date || !formData.time) {
+      setError("Por favor completa todos los campos requeridos")
+      return
+    }
+
     setIsSubmitting(true)
+    setError("")
+    setSuccess(false)
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    try {
+      // Combine date and time into ISO string
+      const [hours, minutes] = formData.time.split(':')
+      const appointmentDateTime = new Date(formData.date)
+      appointmentDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0)
 
-    // Here you would typically send the data to your backend
-    console.log("Appointment request:", {
-      ...formData,
-      doctor: selectedDoctor,
-      status: "Pendiente" // New appointments start as pending
-    })
-    
-    setIsSubmitting(false)
-    
-    // Redirect to appointments page after successful submission
-    window.location.href = "/dashboard/paciente/citas"
+      const appointmentData: CreateAppointmentRequest = {
+        appointmentDate: appointmentDateTime.toISOString(),
+        durationMinutes: formData.durationMinutes,
+        type: formData.type as AppointmentType,
+        location: formData.location || undefined,
+        notes: formData.notes || undefined,
+        preparationInstructions: formData.preparationInstructions || undefined
+      }
+
+      await appointments.create(doctorProfileId, patientProfileId, appointmentData)
+      
+      setSuccess(true)
+      
+      // Redirect after success
+      setTimeout(() => {
+        router.push("/dashboard/paciente/citas")
+      }, 2000)
+    } catch (err) {
+      console.error("Error creating appointment:", err)
+      setError(err instanceof Error ? err.message : "Error al solicitar la cita")
+      setIsSubmitting(false)
+    }
   }
 
-  const isFormValid = formData.appointmentType && formData.doctor && formData.date && formData.time && formData.reason
+  const isFormValid = formData.type && formData.date && formData.time
 
-  const urgencyLevels = [
-    { value: "normal", label: "Normal", description: "Cita de rutina", color: "text-primary" },
-    { value: "urgente", label: "Urgente", description: "Requiere atención en 24-48 horas", color: "text-secondary" },
-    { value: "muy-urgente", label: "Muy Urgente", description: "Requiere atención inmediata", color: "text-destructive" }
+  const availableTimes = [
+    "08:00", "08:30", "09:00", "09:30", "10:00", "10:30",
+    "11:00", "11:30", "12:00", "12:30", "13:00", "13:30",
+    "14:00", "14:30", "15:00", "15:30", "16:00", "16:30",
+    "17:00", "17:30", "18:00"
   ]
 
+  if (success) {
+    return (
+      <AuthGuard requiredRole="PATIENT">
+        <DashboardLayout>
+          <div className="flex items-center justify-center min-h-[60vh]">
+            <Card className="w-full max-w-md">
+              <CardContent className="pt-6">
+                <div className="text-center space-y-4">
+                  <div className="flex justify-center">
+                    <div className="rounded-full bg-primary/10 p-3">
+                      <CheckCircle className="h-12 w-12 text-primary" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2">¡Solicitud Enviada!</h3>
+                    <p className="text-muted-foreground">
+                      Tu solicitud de cita ha sido enviada exitosamente. El doctor la revisará y te contactará pronto.
+                    </p>
+                  </div>
+                  <Button asChild className="w-full">
+                    <Link href="/dashboard/paciente/citas">Ver Mis Citas</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </DashboardLayout>
+      </AuthGuard>
+    )
+  }
+
   return (
-    <AuthGuard requiredUserType="paciente">
-      <DashboardLayout userType="paciente">
+    <AuthGuard requiredRole="PATIENT">
+      <DashboardLayout>
         <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center gap-4">
@@ -181,9 +203,15 @@ export default function NuevaCitaPage() {
             </Button>
             <div>
               <h1 className="text-3xl font-bold text-foreground">Solicitar Nueva Cita</h1>
-              <p className="text-muted-foreground">Agenda una cita médica con tu doctor</p>
+              <p className="text-muted-foreground">Agenda una cita médica con {doctorName}</p>
             </div>
           </div>
+
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -198,16 +226,11 @@ export default function NuevaCitaPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="appointmentType">Tipo de Consulta *</Label>
-                    <Select value={formData.appointmentType} onValueChange={(value) => {
-                      if (value === "otro") {
-                        setShowCustomType(true)
-                        handleInputChange("appointmentType", "")
-                      } else {
-                        setShowCustomType(false)
-                        handleInputChange("appointmentType", value)
-                      }
-                    }}>
+                    <Label htmlFor="type">Tipo de Consulta *</Label>
+                    <Select 
+                      value={formData.type} 
+                      onValueChange={(value) => handleInputChange("type", value)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Selecciona el tipo de consulta" />
                       </SelectTrigger>
@@ -222,72 +245,23 @@ export default function NuevaCitaPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    {showCustomType && (
-                      <Input
-                        placeholder="Describe el tipo de consulta"
-                        value={formData.customType}
-                        onChange={(e) => handleInputChange("customType", e.target.value)}
-                      />
-                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="doctor">Doctor *</Label>
-                    <Select value={formData.doctor} onValueChange={handleDoctorChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona tu doctor" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableDoctors.map((doctor) => (
-                          <SelectItem key={doctor.id} value={doctor.id.toString()}>
-                            <div className="flex items-center gap-2">
-                              <div>
-                                <div className="font-medium">{doctor.name}</div>
-                                <div className="text-xs text-muted-foreground">{doctor.specialty}</div>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Label htmlFor="doctor">Doctor Asignado</Label>
+                    <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                      <User className="h-5 w-5 text-primary" />
+                      <span className="font-medium">{doctorName}</span>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="urgency">Nivel de Urgencia</Label>
-                    <Select value={formData.urgency} onValueChange={(value) => handleInputChange("urgency", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona la urgencia" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {urgencyLevels.map((level) => (
-                          <SelectItem key={level.value} value={level.value}>
-                            <div>
-                              <div className="font-medium">{level.label}</div>
-                              <div className="text-xs text-muted-foreground">{level.description}</div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="reason">Motivo de la Consulta *</Label>
+                    <Label htmlFor="notes">Motivo de la Consulta</Label>
                     <Textarea
                       placeholder="Describe brevemente el motivo de tu consulta..."
-                      value={formData.reason}
-                      onChange={(e) => handleInputChange("reason", e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="symptoms">Síntomas Actuales</Label>
-                    <Textarea
-                      placeholder="Describe los síntomas que estás experimentando..."
-                      value={formData.symptoms}
-                      onChange={(e) => handleInputChange("symptoms", e.target.value)}
-                      rows={2}
+                      value={formData.notes}
+                      onChange={(e) => handleInputChange("notes", e.target.value)}
+                      rows={4}
                     />
                   </div>
                 </CardContent>
@@ -307,9 +281,13 @@ export default function NuevaCitaPage() {
                     <Label htmlFor="date">Fecha Preferida *</Label>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start bg-transparent">
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start bg-transparent"
+                          type="button"
+                        >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {format(formData.date, "dd/MM/yyyy")}
+                          {formData.date ? format(formData.date, "dd/MM/yyyy", { locale: es }) : "Selecciona una fecha"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
@@ -319,19 +297,10 @@ export default function NuevaCitaPage() {
                           onSelect={(date) => date && handleInputChange("date", date)} 
                           locale={es} 
                           initialFocus
-                          disabled={(date) => {
-                            const dayName = format(date, "EEEE", { locale: es }).toLowerCase()
-                            return isBefore(date, startOfDay(addDays(new Date(), 1))) ||
-                                   (selectedDoctor ? !selectedDoctor.availableDays.includes(dayName) : false)
-                          }}
+                          disabled={(date) => isBefore(date, startOfDay(new Date()))}
                         />
                       </PopoverContent>
                     </Popover>
-                    {selectedDoctor && (
-                      <p className="text-xs text-muted-foreground">
-                        Disponible: {selectedDoctor.availableDays.join(", ")}
-                      </p>
-                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -341,31 +310,26 @@ export default function NuevaCitaPage() {
                         <SelectValue placeholder="Selecciona la hora" />
                       </SelectTrigger>
                       <SelectContent>
-                        {getAvailableTimes().map((time) => (
+                        {availableTimes.map((time) => (
                           <SelectItem key={time} value={time}>
                             {time}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    {getAvailableTimes().length === 0 && selectedDoctor && (
-                      <p className="text-xs text-destructive">
-                        No hay horarios disponibles para este doctor en la fecha seleccionada
-                      </p>
-                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="duration">Duración Estimada</Label>
+                    <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{formData.durationMinutes} minutos</span>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="location">Ubicación</Label>
-                    <Select value={formData.location} onValueChange={(value) => {
-                      if (value === "Otro") {
-                        setShowCustomLocation(true)
-                        handleInputChange("location", "")
-                      } else {
-                        setShowCustomLocation(false)
-                        handleInputChange("location", value)
-                      }
-                    }}>
+                    <Select value={formData.location} onValueChange={(value) => handleInputChange("location", value)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecciona la ubicación" />
                       </SelectTrigger>
@@ -377,69 +341,20 @@ export default function NuevaCitaPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    {showCustomLocation && (
-                      <Input
-                        placeholder="Especifica la ubicación"
-                        value={formData.customLocation}
-                        onChange={(e) => handleInputChange("customLocation", e.target.value)}
-                      />
-                    )}
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="preferredContact">Método de Contacto Preferido</Label>
-                    <Select value={formData.preferredContact} onValueChange={(value) => handleInputChange("preferredContact", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Cómo prefieres que te contactemos" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="telefono">Teléfono</SelectItem>
-                        <SelectItem value="email">Email</SelectItem>
-                        <SelectItem value="sms">SMS</SelectItem>
-                        <SelectItem value="app">Aplicación</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="notes">Notas Adicionales</Label>
+                    <Label htmlFor="preparationInstructions">Instrucciones de Preparación</Label>
                     <Textarea
-                      placeholder="Cualquier información adicional que consideres importante..."
-                      value={formData.notes}
-                      onChange={(e) => handleInputChange("notes", e.target.value)}
+                      placeholder="Si tienes alguna condición especial o necesitas preparación..."
+                      value={formData.preparationInstructions}
+                      onChange={(e) => handleInputChange("preparationInstructions", e.target.value)}
                       rows={3}
                     />
                   </div>
                 </CardContent>
               </Card>
             </div>
-
-            {/* Doctor Information */}
-            {selectedDoctor && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5 text-accent" />
-                    Información del Doctor
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-accent/10 rounded-lg flex items-center justify-center">
-                      <User className="h-8 w-8 text-accent" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold">{selectedDoctor.name}</h3>
-                      <p className="text-muted-foreground">{selectedDoctor.specialty}</p>
-                      <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                        <span>📅 Disponible: {selectedDoctor.availableDays.join(", ")}</span>
-                        <span>🕐 Horarios: {selectedDoctor.availableHours.join(", ")}</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
 
             {/* Important Information */}
             <Alert>
@@ -451,65 +366,54 @@ export default function NuevaCitaPage() {
             </Alert>
 
             {/* Summary Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Resumen de la Solicitud</CardTitle>
-                <CardDescription>Revisa la información antes de enviar</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium text-muted-foreground">Tipo de Consulta:</span>
-                    <p className="font-medium">
-                      {formData.appointmentType === "otro" ? formData.customType : 
-                       appointmentTypes.find(t => t.value === formData.appointmentType)?.label || "No especificado"}
-                    </p>
+            {formData.type && formData.date && formData.time && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Resumen de la Solicitud</CardTitle>
+                  <CardDescription>Revisa la información antes de enviar</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-muted-foreground">Tipo de Consulta:</span>
+                      <p className="font-medium">
+                        {appointmentTypes.find(t => t.value === formData.type)?.label}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-muted-foreground">Doctor:</span>
+                      <p className="font-medium">{doctorName}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-muted-foreground">Fecha y Hora:</span>
+                      <p className="font-medium">
+                        {format(formData.date, "dd/MM/yyyy", { locale: es })} a las {formData.time}
+                      </p>
+                    </div>
+                    {formData.location && (
+                      <div>
+                        <span className="font-medium text-muted-foreground">Ubicación:</span>
+                        <p className="font-medium">{formData.location}</p>
+                      </div>
+                    )}
+                    <div>
+                      <span className="font-medium text-muted-foreground">Duración:</span>
+                      <p className="font-medium">{formData.durationMinutes} minutos</p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">Doctor:</span>
-                    <p className="font-medium">
-                      {selectedDoctor ? selectedDoctor.name : "No seleccionado"}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">Fecha y Hora:</span>
-                    <p className="font-medium">
-                      {format(formData.date, "dd/MM/yyyy")} {formData.time || "No especificada"}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">Ubicación:</span>
-                    <p className="font-medium">
-                      {formData.location === "Otro" ? formData.customLocation : formData.location || "No especificada"}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">Urgencia:</span>
-                    <p className="font-medium">
-                      {urgencyLevels.find(u => u.value === formData.urgency)?.label || "Normal"}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">Contacto:</span>
-                    <p className="font-medium">
-                      {formData.preferredContact === "telefono" ? "Teléfono" :
-                       formData.preferredContact === "email" ? "Email" :
-                       formData.preferredContact === "sms" ? "SMS" : "Aplicación"}
-                    </p>
-                  </div>
-                </div>
-                {formData.reason && (
-                  <div className="mt-4">
-                    <span className="font-medium text-muted-foreground">Motivo:</span>
-                    <p className="text-sm mt-1">{formData.reason}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  {formData.notes && (
+                    <div className="mt-4">
+                      <span className="font-medium text-muted-foreground">Motivo:</span>
+                      <p className="text-sm mt-1">{formData.notes}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Submit Button */}
             <div className="flex justify-end gap-4">
-              <Button variant="outline" asChild>
+              <Button variant="outline" asChild type="button">
                 <Link href="/dashboard/paciente/citas">Cancelar</Link>
               </Button>
               <Button 

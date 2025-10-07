@@ -8,54 +8,43 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, ArrowLeft, Mail, Lock, User } from "lucide-react"
+import { Eye, EyeOff, ArrowLeft, Mail, Lock } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useAuthContext } from "@/contexts/auth-context"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
-  const [userType, setUserType] = useState<"medico" | "paciente" | "">("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [rememberMe, setRememberMe] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
-  const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { login } = useAuthContext()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
     setError("")
+    setIsSubmitting(true)
 
-    if (!email || !password || !userType) {
-      setError("Por favor completa todos los campos")
-      setIsLoading(false)
+    if (!email || !password) {
+      setError("Por favor ingresa tu email y contraseña")
+      setIsSubmitting(false)
       return
     }
 
-    // Simulate authentication
-    setTimeout(() => {
-      // Save authentication data to localStorage
-      localStorage.setItem("oncontrol-auth", "true")
-      localStorage.setItem("oncontrol-user-type", userType)
-      localStorage.setItem("oncontrol-user-email", email)
-
-      // Set user name based on type for demo
-      const userName = userType === "medico" ? "Dr. Carlos Mendoza" : "María González"
-      localStorage.setItem("oncontrol-user-name", userName)
-
-      // Redirect based on user type
-      if (userType === "medico") {
-        router.push("/dashboard/medico")
-      } else {
-        router.push("/dashboard/paciente")
-      }
-
-      setIsLoading(false)
-    }, 1000)
+    try {
+      // El backend determinará automáticamente el rol del usuario
+      await login({
+        email,
+        password,
+      })
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "Error al iniciar sesión. Verifica tus credenciales.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -85,20 +74,6 @@ export default function LoginPage() {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-
-              <div className="space-y-2">
-                <Label htmlFor="userType">Tipo de usuario</Label>
-                <Select value={userType} onValueChange={(value: "medico" | "paciente") => setUserType(value)}>
-                  <SelectTrigger>
-                    <User className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder="Selecciona tu tipo de usuario" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="medico">Médico Oncólogo</SelectItem>
-                    <SelectItem value="paciente">Paciente</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="email">Correo electrónico</Label>
@@ -157,8 +132,8 @@ export default function LoginPage() {
                 </Link>
               </div>
 
-              <Button type="submit" className="w-full oncontrol-gradient text-white" disabled={isLoading}>
-                {isLoading ? "Iniciando sesión..." : "Iniciar Sesión"}
+              <Button type="submit" className="w-full oncontrol-gradient text-white" disabled={isSubmitting}>
+                {isSubmitting ? "Iniciando sesión..." : "Iniciar Sesión"}
               </Button>
             </form>
 

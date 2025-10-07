@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { AuthGuard } from "@/components/auth-guard"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { AuthGuard } from "@/components/auth-guard-updated"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -16,6 +17,10 @@ import { AlertTriangle, CalendarIcon, Activity, ArrowLeft, Save } from "lucide-r
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import Link from "next/link"
+import { useAuthContext } from "@/contexts/auth-context"
+import { symptoms } from "@/lib/api"
+import type { CreateSymptomRequest } from "@/lib/api"
+import { isPatientUser } from "@/types/organization"
 
 // Symptom types and severity levels
 const symptomTypes = [
@@ -98,6 +103,9 @@ const managementActions = [
 ]
 
 export default function NuevoSintomaPage() {
+  const { user } = useAuthContext()
+  const router = useRouter()
+  const [patientProfileId, setPatientProfileId] = useState<number | null>(null)
   const [formData, setFormData] = useState({
     symptom: "",
     severity: "",
@@ -114,6 +122,13 @@ export default function NuevoSintomaPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showCustomSymptom, setShowCustomSymptom] = useState(false)
+  const [error, setError] = useState("")
+
+  useEffect(() => {
+    if (user && isPatientUser(user)) {
+      setPatientProfileId(user.profile.id)
+    }
+  }, [user])
 
   const handleInputChange = (field: string, value: string | Date | string[]) => {
     setFormData(prev => ({
@@ -133,25 +148,54 @@ export default function NuevoSintomaPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!patientProfileId) {
+      setError("No se pudo identificar el paciente")
+      return
+    }
+    
     setIsSubmitting(true)
+    setError("")
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    try {
+      // Map severity to backend values
+      const severityMap: Record<string, 'MILD' | 'MODERATE' | 'SEVERE' | 'CRITICAL'> = {
+        'Leve': 'MILD',
+        'Moderada': 'MODERATE',
+        'Severa': 'SEVERE',
+        'Muy Severa': 'CRITICAL'
+      }
 
-    // Here you would typically send the data to your backend
-    console.log("Symptom data:", formData)
-    
-    setIsSubmitting(false)
-    
-    // Redirect to symptoms page after successful submission
-    window.location.href = "/dashboard/paciente/sintomas"
+      const symptomData: CreateSymptomRequest = {
+        symptomName: formData.symptom || formData.customSymptom,
+        severity: severityMap[formData.severity] || 'MODERATE',
+        occurrenceDate: format(formData.date, 'yyyy-MM-dd'),
+        occurrenceTime: formData.time,
+        durationHours: formData.duration ? parseFloat(formData.duration) : undefined,
+        notes: formData.notes || undefined,
+        triggers: formData.triggers.length > 0 ? formData.triggers.join(', ') : undefined,
+        managementActions: undefined,
+        impactOnDailyLife: undefined,
+        requiresMedicalAttention: formData.severity === 'Muy Severa'
+      }
+
+      console.log('Sending symptom data:', symptomData)
+      await symptoms.create(patientProfileId, symptomData)
+      
+      // Redirect to symptoms page after successful submission
+      router.push("/dashboard/paciente/sintomas")
+    } catch (err) {
+      console.error("Error creating symptom:", err)
+      setError(err instanceof Error ? err.message : "Error al registrar el síntoma")
+      setIsSubmitting(false)
+    }
   }
 
   const isFormValid = formData.symptom && formData.severity && formData.time && formData.duration
 
   return (
-    <AuthGuard requiredUserType="paciente">
-      <DashboardLayout userType="paciente">
+    <AuthGuard requiredRole="PATIENT">
+      <DashboardLayout>
         <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center gap-4">
@@ -168,6 +212,13 @@ export default function NuevoSintomaPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-lg flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                <span>{error}</span>
+              </div>
+            )}
+            
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Basic Information */}
               <Card>

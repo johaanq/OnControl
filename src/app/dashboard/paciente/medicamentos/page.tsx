@@ -1,303 +1,322 @@
 "use client"
 
-import { useState } from "react"
-import { AuthGuard } from "@/components/auth-guard"
+import { useState, useEffect } from "react"
+import { AuthGuard } from "@/components/auth-guard-updated"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
-import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Pill, Clock, CheckCircle, Info, Bell, Calendar } from "lucide-react"
+import { Loading } from "@/components/loading"
+import { useAuthContext } from "@/contexts/auth-context"
+import { medications } from "@/lib/api"
+import type { MedicationResponse, UpcomingDoseResponse } from "@/lib/api"
+import { isPatientUser } from "@/types/organization"
+import { Pill, Clock, CheckCircle, Info, Calendar } from "lucide-react"
 
-// Mock data
-const mockMedications = [
-  {
-    id: 1,
-    name: "Tamoxifeno",
-    dosage: "20mg",
-    frequency: "1 vez al día",
-    nextDose: "20:00",
-    adherence: 95,
-    totalDoses: 30,
-    takenDoses: 28,
-    sideEffects: ["Sofocos", "Fatiga leve"],
-    instructions: "Tomar con alimentos. Evitar pomelo.",
-    startDate: "2024-10-15",
-    endDate: "2025-04-15",
-    active: true,
-    reminders: true,
-  },
-  {
-    id: 2,
-    name: "Ácido Fólico",
-    dosage: "5mg",
-    frequency: "1 vez al día",
-    nextDose: "08:00",
-    adherence: 88,
-    totalDoses: 30,
-    takenDoses: 26,
-    sideEffects: [],
-    instructions: "Tomar en ayunas, 30 minutos antes del desayuno.",
-    startDate: "2024-11-01",
-    endDate: "2025-05-01",
-    active: true,
-    reminders: true,
-  },
-  {
-    id: 3,
-    name: "Omeprazol",
-    dosage: "20mg",
-    frequency: "1 vez al día",
-    nextDose: "08:00",
-    adherence: 100,
-    totalDoses: 30,
-    takenDoses: 30,
-    sideEffects: [],
-    instructions: "Tomar 30 minutos antes del desayuno.",
-    startDate: "2024-10-20",
-    endDate: "2025-01-20",
-    active: true,
-    reminders: false,
-  },
-  {
-    id: 4,
-    name: "Paracetamol",
-    dosage: "500mg",
-    frequency: "Según necesidad",
-    nextDose: "Según necesidad",
-    adherence: 0,
-    totalDoses: 0,
-    takenDoses: 0,
-    sideEffects: [],
-    instructions: "Para dolor o fiebre. Máximo 4 gramos al día.",
-    startDate: "2024-10-15",
-    endDate: "2025-04-15",
-    active: false,
-    reminders: false,
-  },
-]
-
-const mockUpcomingDoses = [
-  {
-    id: 1,
-    medication: "Ácido Fólico",
-    time: "08:00",
-    dosage: "5mg",
-    taken: false,
-  },
-  {
-    id: 2,
-    medication: "Omeprazol",
-    time: "08:00",
-    dosage: "20mg",
-    taken: false,
-  },
-  {
-    id: 3,
-    medication: "Tamoxifeno",
-    time: "20:00",
-    dosage: "20mg",
-    taken: false,
-  },
-]
+const routeNames: Record<string, string> = {
+  ORAL: "Oral",
+  INTRAVENOUS: "Intravenosa",
+  INTRAMUSCULAR: "Intramuscular",
+  SUBCUTANEOUS: "Subcutánea",
+  TOPICAL: "Tópica"
+}
 
 export default function MedicamentosPage() {
-  const [medications, setMedications] = useState(mockMedications)
-  const [upcomingDoses, setUpcomingDoses] = useState(mockUpcomingDoses)
+  const { user } = useAuthContext()
+  const [patientProfileId, setPatientProfileId] = useState<number | null>(null)
+  const [medicationsList, setMedicationsList] = useState<MedicationResponse[]>([])
+  const [upcomingDoses, setUpcomingDoses] = useState<UpcomingDoseResponse[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const toggleReminder = (medicationId: number) => {
-    setMedications(medications.map((med) => (med.id === medicationId ? { ...med, reminders: !med.reminders } : med)))
+  useEffect(() => {
+    if (user && isPatientUser(user)) {
+      setPatientProfileId(user.profile.id)
+    }
+  }, [user])
+
+  useEffect(() => {
+    const loadMedications = async () => {
+      if (!patientProfileId) return
+
+      try {
+        setIsLoading(true)
+        setError(null)
+
+        const [activeMeds, doses] = await Promise.all([
+          medications.getPatientActive(patientProfileId),
+          medications.getUpcomingDoses(patientProfileId, 1) // Next 24 hours
+        ])
+
+        setMedicationsList(activeMeds)
+        setUpcomingDoses(doses)
+      } catch (err) {
+        console.error('Error loading medications:', err)
+        setError('Error al cargar los medicamentos')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadMedications()
+  }, [patientProfileId])
+
+  const handleMarkDoseTaken = async (medicationId: number) => {
+    if (!patientProfileId) return
+
+    try {
+      await medications.markDoseTaken(medicationId, {
+        takenAt: new Date().toISOString(),
+        notes: 'Dosis tomada'
+      })
+
+      // Reload doses
+      const doses = await medications.getUpcomingDoses(patientProfileId, 1)
+      setUpcomingDoses(doses)
+    } catch (err) {
+      console.error('Error marking dose as taken:', err)
+    }
   }
 
-  const markDoseTaken = (doseId: number) => {
-    setUpcomingDoses(upcomingDoses.map((dose) => (dose.id === doseId ? { ...dose, taken: true } : dose)))
+  if (isLoading) {
+    return (
+      <AuthGuard requiredRole="PATIENT">
+        <DashboardLayout>
+          <Loading message="Cargando medicamentos..." />
+        </DashboardLayout>
+      </AuthGuard>
+    )
   }
 
-  const getAdherenceColor = (adherence: number) => {
-    if (adherence >= 90) return "text-primary"
-    if (adherence >= 70) return "text-secondary"
-    return "text-destructive"
-  }
-
-  const getAdherenceLevel = (adherence: number) => {
-    if (adherence >= 90) return "Excelente"
-    if (adherence >= 70) return "Buena"
-    return "Necesita mejorar"
+  if (error) {
+    return (
+      <AuthGuard requiredRole="PATIENT">
+        <DashboardLayout>
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <p className="text-destructive mb-4">{error}</p>
+              <Button onClick={() => window.location.reload()}>
+                Reintentar
+              </Button>
+            </div>
+          </div>
+        </DashboardLayout>
+      </AuthGuard>
+    )
   }
 
   return (
-    <AuthGuard requiredUserType="paciente">
-      <DashboardLayout userType="paciente">
+    <AuthGuard requiredRole="PATIENT">
+      <DashboardLayout>
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-foreground">Mis Medicamentos</h1>
-              <p className="text-muted-foreground">Gestiona tu medicación y recordatorios</p>
-            </div>
-            <Button variant="outline">
-              <Calendar className="mr-2 h-4 w-4" />
-              Ver Calendario
-            </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Mis Medicamentos</h1>
+            <p className="text-muted-foreground">Gestiona tus medicamentos y recordatorios</p>
           </div>
 
-          {/* Today's Doses */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Dosis de Hoy</CardTitle>
-              <CardDescription>Medicamentos programados para hoy</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3">
-                {upcomingDoses.map((dose) => (
-                  <div
-                    key={dose.id}
-                    className={`flex items-center justify-between p-4 rounded-lg border ${
-                      dose.taken ? "bg-primary/5 border-primary/20" : "bg-card"
-                    }`}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                          dose.taken ? "bg-primary/10" : "bg-secondary/10"
-                        }`}
-                      >
-                        {dose.taken ? (
-                          <CheckCircle className="h-5 w-5 text-primary" />
-                        ) : (
-                          <Pill className="h-5 w-5 text-secondary" />
-                        )}
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Medicamentos Activos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{medicationsList.length}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Dosis Próximas (24h)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{upcomingDoses.length}</div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium">Dosis Pendientes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {upcomingDoses.filter(d => !d.taken).length}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Upcoming Doses */}
+          {upcomingDoses.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-primary" />
+                  Próximas Dosis
+                </CardTitle>
+                <CardDescription>Medicamentos que debes tomar en las próximas 24 horas</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {upcomingDoses.map((dose) => (
+                    <div
+                      key={`${dose.medicationId}-${dose.scheduledTime}`}
+                      className={`flex items-center justify-between p-4 border rounded-lg ${
+                        dose.taken ? 'bg-muted' : 'bg-card'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${dose.taken ? 'bg-primary/20' : 'bg-secondary/20'}`}>
+                          {dose.taken ? (
+                            <CheckCircle className="w-5 h-5 text-primary" />
+                          ) : (
+                            <Clock className="w-5 h-5 text-secondary" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold">{dose.medicationName}</p>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span>{dose.dosage}</span>
+                            <span>•</span>
+                            <span>{new Date(dose.scheduledTime).toLocaleTimeString('es-ES', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}</span>
+                          </div>
+                        </div>
+                      </div>
+                      {!dose.taken && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleMarkDoseTaken(dose.medicationId)}
+                        >
+                          Marcar como Tomada
+                        </Button>
+                      )}
+                      {dose.taken && (
+                        <Badge variant="outline" className="bg-primary/10">
+                          Tomada
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Active Medications */}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Medicamentos Activos</h2>
+
+            {medicationsList.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Pill className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No tienes medicamentos activos registrados</p>
+                </CardContent>
+              </Card>
+            ) : (
+              medicationsList.map((medication) => (
+                <Card key={medication.id}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <Pill className="w-5 h-5 text-primary" />
+                          {medication.name}
+                        </CardTitle>
+                        <CardDescription>
+                          Prescrito por {medication.doctorName}
+                        </CardDescription>
+                      </div>
+                      <Badge variant={medication.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                        {medication.status === 'ACTIVE' ? 'Activo' : medication.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Dosage Information */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Dosis</p>
+                        <p className="text-lg font-semibold">{medication.dosage}</p>
                       </div>
                       <div>
-                        <p className="font-medium">{dose.medication}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {dose.dosage} • {dose.time}
+                        <p className="text-sm font-medium text-muted-foreground">Frecuencia</p>
+                        <p className="text-lg font-semibold">{medication.frequency}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Vía</p>
+                        <p className="text-lg font-semibold">
+                          {routeNames[medication.route] || medication.route}
                         </p>
                       </div>
                     </div>
-                    {!dose.taken && (
-                      <Button
-                        size="sm"
-                        onClick={() => markDoseTaken(dose.id)}
-                        className="bg-primary/10 text-primary hover:bg-primary/20"
-                      >
-                        Marcar como tomado
-                      </Button>
-                    )}
-                    {dose.taken && <Badge className="bg-primary/10 text-primary border-primary/20">Tomado</Badge>}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* Medications List */}
-          <div className="grid gap-6">
-            {medications.map((medication) => (
-              <Card key={medication.id} className="transition-all hover:shadow-md">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-3">
-                        {medication.name}
-                        {medication.active ? (
-                          <Badge className="bg-primary/10 text-primary border-primary/20">Activo</Badge>
-                        ) : (
-                          <Badge variant="outline">Según necesidad</Badge>
-                        )}
-                      </CardTitle>
-                      <CardDescription>
-                        {medication.dosage} • {medication.frequency}
-                      </CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Bell className="h-4 w-4 text-muted-foreground" />
-                      <Switch checked={medication.reminders} onCheckedChange={() => toggleReminder(medication.id)} />
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Adherence */}
-                  {medication.active && (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">Adherencia</span>
-                        <span className={`text-sm font-medium ${getAdherenceColor(medication.adherence)}`}>
-                          {medication.adherence}% • {getAdherenceLevel(medication.adherence)}
+                    {/* Date Information */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Inicio:</span>
+                        <span className="font-medium">
+                          {new Date(medication.startDate).toLocaleDateString('es-ES')}
                         </span>
                       </div>
-                      <Progress value={medication.adherence} className="h-2" />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {medication.takenDoses} de {medication.totalDoses} dosis tomadas
-                      </p>
+                      {medication.endDate && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Calendar className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">Fin:</span>
+                          <span className="font-medium">
+                            {new Date(medication.endDate).toLocaleDateString('es-ES')}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  )}
 
-                  {/* Instructions */}
-                  <Alert>
-                    <Info className="h-4 w-4" />
-                    <AlertDescription>{medication.instructions}</AlertDescription>
-                  </Alert>
+                    {/* Instructions */}
+                    {medication.instructions && (
+                      <Alert>
+                        <Info className="h-4 w-4" />
+                        <AlertDescription>
+                          <span className="font-medium">Instrucciones: </span>
+                          {medication.instructions}
+                        </AlertDescription>
+                      </Alert>
+                    )}
 
-                  {/* Side Effects */}
-                  {medication.sideEffects.length > 0 && (
-                    <div>
-                      <h4 className="text-sm font-medium mb-2">Efectos secundarios reportados:</h4>
-                      <div className="flex gap-2">
-                        {medication.sideEffects.map((effect, index) => (
-                          <Badge key={index} variant="outline" className="text-xs">
-                            {effect}
-                          </Badge>
-                        ))}
+                    {/* Side Effects */}
+                    {medication.sideEffects && medication.sideEffects.length > 0 && (
+                      <div>
+                        <p className="text-sm font-medium mb-2">Posibles efectos secundarios:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {medication.sideEffects.map((effect, index) => (
+                            <Badge key={index} variant="outline" className="bg-secondary/10">
+                              {effect}
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Treatment Period */}
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>Inicio: {new Date(medication.startDate).toLocaleDateString("es-PE")}</span>
-                    <span>Fin: {new Date(medication.endDate).toLocaleDateString("es-PE")}</span>
-                  </div>
-
-                  {/* Next Dose */}
-                  {medication.active && medication.nextDose !== "Según necesidad" && (
-                    <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-                      <Clock className="h-4 w-4 text-primary" />
-                      <span className="text-sm">
-                        Próxima dosis: <strong>{medication.nextDose}</strong>
-                      </span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                    {/* Next Refill */}
+                    {medication.nextRefillDate && (
+                      <div className="pt-4 border-t">
+                        <p className="text-sm text-muted-foreground">
+                          Próximo resurtido:{' '}
+                          <span className="font-medium text-foreground">
+                            {new Date(medication.nextRefillDate).toLocaleDateString('es-ES')}
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
-
-          {/* Medication Insights */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Resumen de Adherencia</CardTitle>
-              <CardDescription>Tu progreso con la medicación</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-primary mb-2">92%</div>
-                  <p className="text-sm text-muted-foreground">Adherencia promedio</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-secondary mb-2">3</div>
-                  <p className="text-sm text-muted-foreground">Medicamentos activos</p>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-accent mb-2">2</div>
-                  <p className="text-sm text-muted-foreground">Dosis pendientes hoy</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </DashboardLayout>
     </AuthGuard>

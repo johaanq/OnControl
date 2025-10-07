@@ -8,66 +8,181 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Eye, EyeOff, ArrowLeft, Mail, Lock, User, Phone, Calendar, MapPin } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Eye, EyeOff, ArrowLeft, Mail, Lock, Building2, Globe, MapPin } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useAuthContext } from "@/contexts/auth-context"
 
-export default function RegisterPage() {
+// Lista de países comunes en Latinoamérica y España
+const COUNTRIES = [
+  { value: "México", label: "México" },
+  { value: "España", label: "España" },
+  { value: "Colombia", label: "Colombia" },
+  { value: "Argentina", label: "Argentina" },
+  { value: "Chile", label: "Chile" },
+  { value: "Perú", label: "Perú" },
+  { value: "Venezuela", label: "Venezuela" },
+  { value: "Ecuador", label: "Ecuador" },
+  { value: "Guatemala", label: "Guatemala" },
+  { value: "Cuba", label: "Cuba" },
+  { value: "Bolivia", label: "Bolivia" },
+  { value: "República Dominicana", label: "República Dominicana" },
+  { value: "Honduras", label: "Honduras" },
+  { value: "Paraguay", label: "Paraguay" },
+  { value: "El Salvador", label: "El Salvador" },
+  { value: "Nicaragua", label: "Nicaragua" },
+  { value: "Costa Rica", label: "Costa Rica" },
+  { value: "Puerto Rico", label: "Puerto Rico" },
+  { value: "Panamá", label: "Panamá" },
+  { value: "Uruguay", label: "Uruguay" },
+]
+
+// Ciudades por país
+const CITIES_BY_COUNTRY: Record<string, string[]> = {
+  "México": [
+    "Ciudad de México", "Guadalajara", "Monterrey", "Puebla", "Tijuana",
+    "León", "Juárez", "Zapopan", "Mérida", "Querétaro"
+  ],
+  "España": [
+    "Madrid", "Barcelona", "Valencia", "Sevilla", "Zaragoza",
+    "Málaga", "Murcia", "Palma", "Las Palmas", "Bilbao"
+  ],
+  "Colombia": [
+    "Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena",
+    "Cúcuta", "Bucaramanga", "Pereira", "Santa Marta", "Ibagué"
+  ],
+  "Argentina": [
+    "Buenos Aires", "Córdoba", "Rosario", "Mendoza", "La Plata",
+    "San Miguel de Tucumán", "Mar del Plata", "Salta", "Santa Fe", "San Juan"
+  ],
+  "Chile": [
+    "Santiago", "Valparaíso", "Concepción", "La Serena", "Antofagasta",
+    "Temuco", "Rancagua", "Talca", "Arica", "Chillán"
+  ],
+  "Perú": [
+    "Lima", "Arequipa", "Trujillo", "Chiclayo", "Piura",
+    "Cusco", "Iquitos", "Huancayo", "Tacna", "Juliaca"
+  ],
+  "Venezuela": [
+    "Caracas", "Maracaibo", "Valencia", "Barquisimeto", "Maracay",
+    "Ciudad Guayana", "Barcelona", "Maturín", "Puerto La Cruz", "Petare"
+  ],
+  "Ecuador": [
+    "Quito", "Guayaquil", "Cuenca", "Santo Domingo", "Machala",
+    "Durán", "Manta", "Portoviejo", "Loja", "Ambato"
+  ],
+  "Guatemala": [
+    "Ciudad de Guatemala", "Mixco", "Villa Nueva", "Quetzaltenango", "Escuintla"
+  ],
+  "Cuba": [
+    "La Habana", "Santiago de Cuba", "Camagüey", "Holguín", "Santa Clara"
+  ],
+  "Bolivia": [
+    "La Paz", "Santa Cruz de la Sierra", "Cochabamba", "Sucre", "Oruro"
+  ],
+  "República Dominicana": [
+    "Santo Domingo", "Santiago", "La Romana", "San Pedro de Macorís", "San Cristóbal"
+  ],
+  "Honduras": [
+    "Tegucigalpa", "San Pedro Sula", "Choloma", "La Ceiba", "El Progreso"
+  ],
+  "Paraguay": [
+    "Asunción", "Ciudad del Este", "San Lorenzo", "Luque", "Capiatá"
+  ],
+  "El Salvador": [
+    "San Salvador", "Soyapango", "Santa Ana", "San Miguel", "Mejicanos"
+  ],
+  "Nicaragua": [
+    "Managua", "León", "Masaya", "Matagalpa", "Chinandega"
+  ],
+  "Costa Rica": [
+    "San José", "Limón", "San Francisco", "Alajuela", "Liberia"
+  ],
+  "Puerto Rico": [
+    "San Juan", "Bayamón", "Carolina", "Ponce", "Caguas"
+  ],
+  "Panamá": [
+    "Ciudad de Panamá", "San Miguelito", "Tocumen", "David", "Arraiján"
+  ],
+  "Uruguay": [
+    "Montevideo", "Salto", "Ciudad de la Costa", "Paysandú", "Las Piedras"
+  ],
+}
+
+export default function RegisterOrganizationPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [userType, setUserType] = useState<"medico" | "paciente" | "">("")
+  const [selectedCountry, setSelectedCountry] = useState("")
+  const [availableCities, setAvailableCities] = useState<string[]>([])
+  
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
     email: "",
-    phone: "",
     password: "",
     confirmPassword: "",
-    birthDate: "",
+    organizationName: "",
+    country: "",
     city: "",
-    specialization: "", // For doctors
-    licenseNumber: "", // For doctors
     acceptTerms: false,
   })
-  const [isLoading, setIsLoading] = useState(false)
+  
   const [error, setError] = useState("")
-  const router = useRouter()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const { registerOrganization } = useAuthContext()
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
+    setError("")
+  }
+
+  const handleCountryChange = (country: string) => {
+    setSelectedCountry(country)
+    setFormData((prev) => ({ ...prev, country, city: "" }))
+    setAvailableCities(CITIES_BY_COUNTRY[country] || [])
+    setError("")
   }
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
     setError("")
+    setIsSubmitting(true)
 
-    // Basic validation
-    if (!userType) {
-      setError("Por favor selecciona tu tipo de usuario")
-      setIsLoading(false)
+    // Validaciones
+    if (formData.password !== formData.confirmPassword) {
+      setError("Las contraseñas no coinciden")
+      setIsSubmitting(false)
       return
     }
 
-    if (formData.password !== formData.confirmPassword) {
-      setError("Las contraseñas no coinciden")
-      setIsLoading(false)
+    if (formData.password.length < 6) {
+      setError("La contraseña debe tener al menos 6 caracteres")
+      setIsSubmitting(false)
       return
     }
 
     if (!formData.acceptTerms) {
       setError("Debes aceptar los términos y condiciones")
-      setIsLoading(false)
+      setIsSubmitting(false)
       return
     }
 
-    // Simulate registration
-    setTimeout(() => {
-      router.push("/auth/login")
-    }, 1000)
+    try {
+      const registerData = {
+        email: formData.email,
+        password: formData.password,
+        organizationName: formData.organizationName,
+        country: formData.country,
+        city: formData.city,
+      }
+
+      await registerOrganization(registerData)
+      // The hook will redirect automatically to /dashboard/organizacion
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "Error al registrar la organización. Inténtalo de nuevo.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -81,101 +196,102 @@ export default function RegisterPage() {
             </Button>
           </Link>
           <OnControlLogo size="lg" className="justify-center mb-4" />
-          <h1 className="text-2xl font-bold text-foreground">Crear Cuenta</h1>
-          <p className="text-muted-foreground">Únete a la comunidad OnControl</p>
+          <h1 className="text-2xl font-bold text-foreground">Registrar Organización</h1>
+          <p className="text-muted-foreground">Crea una cuenta para tu hospital, clínica o centro médico</p>
         </div>
 
         <Card className="oncontrol-shadow">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-xl">Registro de Usuario</CardTitle>
-            <CardDescription>Completa la información para crear tu cuenta</CardDescription>
+            <CardTitle className="text-xl">Información de la Organización</CardTitle>
+            <CardDescription>Completa los datos requeridos para comenzar</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleRegister} className="space-y-4">
+            <form onSubmit={handleRegister} className="space-y-6">
               {error && (
                 <Alert variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="userType">Tipo de usuario</Label>
-                <Select value={userType} onValueChange={(value: "medico" | "paciente") => setUserType(value)}>
-                  <SelectTrigger>
-                    <User className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder="Selecciona tu tipo de usuario" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="medico">Médico Oncólogo</SelectItem>
-                    <SelectItem value="paciente">Paciente</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              {/* Información de la Organización */}
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="firstName">Nombre</Label>
-                  <Input
-                    id="firstName"
-                    placeholder="Tu nombre"
-                    value={formData.firstName}
-                    onChange={(e) => handleInputChange("firstName", e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Apellido</Label>
-                  <Input
-                    id="lastName"
-                    placeholder="Tu apellido"
-                    value={formData.lastName}
-                    onChange={(e) => handleInputChange("lastName", e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">Correo electrónico</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="tu@email.com"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Teléfono</Label>
+                  <Label htmlFor="organizationName">Nombre de la Organización *</Label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Building2 className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+51 999 999 999"
-                      value={formData.phone}
-                      onChange={(e) => handleInputChange("phone", e.target.value)}
+                      id="organizationName"
+                      placeholder="Hospital Central, Clínica San Juan..."
+                      value={formData.organizationName}
+                      onChange={(e) => handleInputChange("organizationName", e.target.value)}
                       className="pl-10"
                       required
                     />
                   </div>
                 </div>
+
                 <div className="space-y-2">
-                  <Label htmlFor="birthDate">Fecha de nacimiento</Label>
+                  <Label htmlFor="country">País *</Label>
                   <div className="relative">
-                    <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Globe className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
+                    <Select value={formData.country} onValueChange={handleCountryChange} required>
+                      <SelectTrigger className="pl-10">
+                        <SelectValue placeholder="Selecciona un país" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COUNTRIES.map((country) => (
+                          <SelectItem key={country.value} value={country.value}>
+                            {country.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="city">Ciudad *</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground z-10 pointer-events-none" />
+                    <Select 
+                      value={formData.city} 
+                      onValueChange={(value) => handleInputChange("city", value)}
+                      disabled={!selectedCountry}
+                      required
+                    >
+                      <SelectTrigger className="pl-10">
+                        <SelectValue placeholder={
+                          selectedCountry 
+                            ? "Selecciona una ciudad" 
+                            : "Primero selecciona un país"
+                        } />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableCities.map((city) => (
+                          <SelectItem key={city} value={city}>
+                            {city}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {!selectedCountry && (
+                    <p className="text-xs text-muted-foreground">
+                      Selecciona un país primero para ver las ciudades disponibles
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Correo Electrónico *</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      id="birthDate"
-                      type="date"
-                      value={formData.birthDate}
-                      onChange={(e) => handleInputChange("birthDate", e.target.value)}
+                      id="email"
+                      type="email"
+                      placeholder="admin@hospital.com"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
                       className="pl-10"
                       required
                     />
@@ -183,55 +299,16 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="city">Ciudad</Label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="city"
-                    placeholder="Lima, Perú"
-                    value={formData.city}
-                    onChange={(e) => handleInputChange("city", e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
-              </div>
-
-              {userType === "medico" && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="specialization">Especialización</Label>
-                    <Input
-                      id="specialization"
-                      placeholder="Oncología Médica"
-                      value={formData.specialization}
-                      onChange={(e) => handleInputChange("specialization", e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="licenseNumber">Número de colegiatura</Label>
-                    <Input
-                      id="licenseNumber"
-                      placeholder="CMP 12345"
-                      value={formData.licenseNumber}
-                      onChange={(e) => handleInputChange("licenseNumber", e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
+              {/* Seguridad */}
+              <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="password">Contraseña</Label>
+                  <Label htmlFor="password">Contraseña *</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
-                      placeholder="Tu contraseña"
+                      placeholder="Mínimo 6 caracteres"
                       value={formData.password}
                       onChange={(e) => handleInputChange("password", e.target.value)}
                       className="pl-10 pr-10"
@@ -248,8 +325,9 @@ export default function RegisterPage() {
                     </Button>
                   </div>
                 </div>
+                
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
+                  <Label htmlFor="confirmPassword">Confirmar Contraseña *</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -274,13 +352,14 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
+              <div className="flex items-start space-x-2">
                 <Checkbox
                   id="acceptTerms"
                   checked={formData.acceptTerms}
                   onCheckedChange={(checked) => handleInputChange("acceptTerms", checked as boolean)}
+                  className="mt-1"
                 />
-                <Label htmlFor="acceptTerms" className="text-sm">
+                <Label htmlFor="acceptTerms" className="text-sm font-normal leading-relaxed">
                   Acepto los{" "}
                   <Link href="#" className="text-primary hover:underline">
                     términos y condiciones
@@ -288,12 +367,17 @@ export default function RegisterPage() {
                   y la{" "}
                   <Link href="#" className="text-primary hover:underline">
                     política de privacidad
-                  </Link>
+                  </Link>.
+                  Entiendo que OnControl es una plataforma para gestión de pacientes oncológicos.
                 </Label>
               </div>
 
-              <Button type="submit" className="w-full oncontrol-gradient text-white" disabled={isLoading}>
-                {isLoading ? "Creando cuenta..." : "Crear Cuenta"}
+              <Button 
+                type="submit" 
+                className="w-full oncontrol-gradient text-white" 
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Registrando organización..." : "Registrar Organización"}
               </Button>
             </form>
 
@@ -307,6 +391,15 @@ export default function RegisterPage() {
             </div>
           </CardContent>
         </Card>
+
+        <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
+          <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">💡 Después del registro:</h4>
+          <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+            <li>• Podrás crear cuentas de doctores para tu organización</li>
+            <li>• Los doctores podrán crear y gestionar sus pacientes</li>
+            <li>• Tendrás acceso a dashboards y reportes completos</li>
+          </ul>
+        </div>
       </div>
     </div>
   )

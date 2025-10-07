@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, memo, useMemo, useCallback } from "react"
-import { AuthGuard } from "@/components/auth-guard"
+import { useState, useEffect } from "react"
+import { AuthGuard } from "@/components/auth-guard-updated"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,660 +9,600 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { ArrowLeft, Plus, X, Save, CalendarIcon, User, Pill, Activity } from "lucide-react"
-import { format, addDays } from "date-fns"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { ArrowLeft, Plus, X, Save, CalendarIcon, User, Pill, Activity, CheckCircle } from "lucide-react"
+import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useAuthContext } from "@/contexts/auth-context"
+import { isDoctorUser } from "@/types/organization"
+import { treatments, doctors } from "@/lib/api"
+import type { CreateTreatmentRequest, PatientProfileResponse, TreatmentType } from "@/lib/api"
 
-// Mock data para pacientes y protocolos
-const mockPacientes = [
-  { 
-    id: 1, 
-    nombre: "María González", 
-    edad: 45, 
-    diagnostico: "Cáncer de mama", 
-    estadio: "Estadio II",
-    pacienteId: "PAC-2024-0847",
-    avatar: "/mujer-45-a-os-sonriente-paciente-oncolog-a.jpg"
-  },
-  { 
-    id: 2, 
-    nombre: "Carlos Mendoza", 
-    edad: 62, 
-    diagnostico: "Cáncer de próstata",
-    estadio: "Estadio III",
-    pacienteId: "PAC-2024-0848",
-    avatar: "/hombre-62-a-os-profesional.jpg"
-  },
-  { 
-    id: 3, 
-    nombre: "Ana Ruiz", 
-    edad: 38, 
-    diagnostico: "Linfoma",
-    estadio: "Estadio I",
-    pacienteId: "PAC-2024-0849",
-    avatar: "/mujer-38-a-os-determinada.jpg"
-  },
-  { 
-    id: 4, 
-    nombre: "Luis Rodríguez", 
-    edad: 55, 
-    diagnostico: "Cáncer de colon",
-    estadio: "Estadio II",
-    pacienteId: "PAC-2024-0850",
-    avatar: "/hombre-55-a-os-optimista.jpg"
-  },
+const treatmentTypes: Array<{ value: TreatmentType, label: string }> = [
+  { value: 'CHEMOTHERAPY', label: 'Quimioterapia' },
+  { value: 'RADIOTHERAPY', label: 'Radioterapia' },
+  { value: 'IMMUNOTHERAPY', label: 'Inmunoterapia' },
+  { value: 'SURGERY', label: 'Cirugía' },
+  { value: 'HORMONE_THERAPY', label: 'Terapia Hormonal' },
+  { value: 'TARGETED_THERAPY', label: 'Terapia Dirigida' },
+  { value: 'STEM_CELL_TRANSPLANT', label: 'Trasplante de Células Madre' }
 ]
 
-const protocolos = {
-  Quimioterapia: [
-    { name: "FOLFOX", description: "Oxaliplatino + 5-FU + Leucovorina", duration: "2 semanas", cycles: "12 ciclos" },
-    { name: "AC-T", description: "Doxorrubicina + Ciclofosfamida seguido de Paclitaxel", duration: "3 semanas", cycles: "8 ciclos" },
-    { name: "TCH", description: "Docetaxel + Carboplatin + Trastuzumab", duration: "3 semanas", cycles: "6 ciclos" },
-    { name: "ABVD", description: "Doxorrubicina + Bleomicina + Vinblastina + Dacarbazina", duration: "2 semanas", cycles: "6 ciclos" },
-    { name: "R-CHOP", description: "Rituximab + Ciclofosfamida + Doxorrubicina + Vincristina + Prednisona", duration: "3 semanas", cycles: "6 ciclos" }
-  ],
-  Radioterapia: [
-    { name: "IMRT", description: "Radioterapia de intensidad modulada", duration: "5-7 semanas", cycles: "25-35 sesiones" },
-    { name: "3D-CRT", description: "Radioterapia conformada 3D", duration: "6-8 semanas", cycles: "30-40 sesiones" },
-    { name: "SBRT", description: "Radioterapia estereotáctica corporal", duration: "1-2 semanas", cycles: "3-5 sesiones" },
-    { name: "VMAT", description: "Terapia de arco volumétrico modulado", duration: "5-7 semanas", cycles: "25-35 sesiones" }
-  ],
-  Inmunoterapia: [
-    { name: "Pembrolizumab", description: "Inhibidor de PD-1", duration: "3 semanas", cycles: "Hasta progresión" },
-    { name: "Nivolumab", description: "Inhibidor de PD-1", duration: "2 semanas", cycles: "Hasta progresión" },
-    { name: "Atezolizumab", description: "Inhibidor de PD-L1", duration: "3 semanas", cycles: "Hasta progresión" },
-    { name: "Ipilimumab", description: "Inhibidor de CTLA-4", duration: "3 semanas", cycles: "4 ciclos" }
-  ],
-  "Terapia dirigida": [
-    { name: "Trastuzumab", description: "Anticuerpo anti-HER2", duration: "3 semanas", cycles: "12-18 ciclos" },
-    { name: "Bevacizumab", description: "Inhibidor de VEGF", duration: "2 semanas", cycles: "Hasta progresión" },
-    { name: "Rituximab", description: "Anticuerpo anti-CD20", duration: "1 semana", cycles: "6-8 ciclos" },
-    { name: "Cetuximab", description: "Anticuerpo anti-EGFR", duration: "1 semana", cycles: "Hasta progresión" }
-  ],
-  Cirugía: [
-    { name: "Cirugía Oncológica", description: "Resección quirúrgica del tumor", duration: "1 día", cycles: "1 procedimiento" },
-    { name: "Cirugía Laparoscópica", description: "Cirugía mínimamente invasiva", duration: "1 día", cycles: "1 procedimiento" },
-    { name: "Cirugía Robótica", description: "Cirugía asistida por robot", duration: "1 día", cycles: "1 procedimiento" }
-  ]
-}
-
-const medicamentosComunes = [
+const commonMedications = [
   "Oxaliplatino", "5-Fluorouracilo", "Leucovorina", "Doxorrubicina", "Ciclofosfamida",
   "Paclitaxel", "Carboplatin", "Pembrolizumab", "Nivolumab", "Trastuzumab",
   "Bevacizumab", "Rituximab", "Docetaxel", "Vinblastina", "Dacarbazina",
   "Vincristina", "Prednisona", "Bleomicina", "Cetuximab", "Ipilimumab"
 ]
 
-const efectosSecundariosComunes = [
-  "Náuseas", "Vómitos", "Fatiga", "Pérdida de apetito", "Diarrea", "Estreñimiento",
-  "Alopecia", "Neuropatía periférica", "Mucositis", "Anemia", "Neutropenia",
-  "Trombocitopenia", "Rash cutáneo", "Hepatotoxicidad", "Cardiotoxicidad", "Nefrotoxicidad"
+const protocolos = {
+  CHEMOTHERAPY: [
+    "FOLFOX - Oxaliplatino + 5-FU + Leucovorina",
+    "AC-T - Doxorrubicina + Ciclofosfamida + Paclitaxel",
+    "TCH - Docetaxel + Carboplatin + Trastuzumab",
+    "ABVD - Doxorrubicina + Bleomicina + Vinblastina + Dacarbazina",
+    "R-CHOP - Rituximab + Ciclofosfamida + Doxorrubicina + Vincristina + Prednisona",
+    "FOLFIRINOX - 5-FU + Leucovorina + Irinotecan + Oxaliplatino",
+    "CMF - Ciclofosfamida + Metotrexato + 5-FU",
+    "Cisplatino + Gemcitabina"
+  ],
+  RADIOTHERAPY: [
+    "IMRT - Radioterapia de Intensidad Modulada",
+    "3D-CRT - Radioterapia Conformada 3D",
+    "SBRT - Radioterapia Estereotáctica",
+    "VMAT - Terapia de Arco Volumétrico Modulado",
+    "Braquiterapia",
+    "Radioterapia Conformacional"
+  ],
+  IMMUNOTHERAPY: [
+    "Pembrolizumab - Inhibidor PD-1",
+    "Nivolumab - Inhibidor PD-1",
+    "Atezolizumab - Inhibidor PD-L1",
+    "Ipilimumab - Inhibidor CTLA-4",
+    "Durvalumab - Inhibidor PD-L1"
+  ],
+  SURGERY: [
+    "Resección Quirúrgica",
+    "Cirugía Laparoscópica",
+    "Cirugía Robótica",
+    "Mastectomía",
+    "Lumpectomía",
+    "Colectomía",
+    "Prostatectomía"
+  ],
+  HORMONE_THERAPY: [
+    "Tamoxifeno",
+    "Letrozol",
+    "Anastrozol",
+    "Exemestano",
+    "Fulvestrant",
+    "Goserelina"
+  ],
+  TARGETED_THERAPY: [
+    "Trastuzumab - Anti-HER2",
+    "Bevacizumab - Anti-VEGF",
+    "Rituximab - Anti-CD20",
+    "Cetuximab - Anti-EGFR",
+    "Imatinib - Inhibidor de Tirosina Quinasa"
+  ],
+  STEM_CELL_TRANSPLANT: [
+    "Trasplante Autólogo",
+    "Trasplante Alogénico",
+    "Trasplante de Sangre de Cordón"
+  ]
+}
+
+const locations = [
+  "Consultorio 101 - Piso 1",
+  "Consultorio 102 - Piso 1",
+  "Consultorio 201 - Piso 2",
+  "Consultorio 202 - Piso 2",
+  "Consultorio 301 - Piso 3",
+  "Sala de Infusiones - Piso 2",
+  "Sala de Procedimientos - Piso 1",
+  "Área de Quimioterapia - Piso 3",
+  "Área de Radioterapia - Sótano",
+  "Quirófano 1 - Piso 4",
+  "Quirófano 2 - Piso 4"
 ]
 
-// Memoized components for better performance
-const PacienteCard = memo(function PacienteCard({ paciente }: { paciente: typeof mockPacientes[0] }) {
-  return (
-    <div className="p-4 bg-accent/10 rounded-lg">
-      <div className="flex items-center gap-3">
-        <div className="w-12 h-12 bg-accent/20 rounded-lg flex items-center justify-center">
-          <User className="h-6 w-6 text-accent" />
-        </div>
-        <div>
-          <h4 className="font-medium">{paciente.nombre}</h4>
-          <p className="text-sm text-muted-foreground">
-            {paciente.edad} años • {paciente.diagnostico}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {paciente.estadio} • ID: {paciente.pacienteId}
-          </p>
-        </div>
-      </div>
-    </div>
-  )
-})
-
-const ProtocoloInfo = memo(function ProtocoloInfo({ protocolo }: { protocolo: { name: string; description: string; duration: string; cycles: string } | undefined }) {
-  if (!protocolo) return null
-  
-  return (
-    <div className="p-3 bg-secondary/10 rounded-lg">
-      <p className="text-sm text-muted-foreground">{protocolo.description}</p>
-      <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
-        <span>⏱️ Duración: {protocolo.duration}</span>
-        <span>🔄 Ciclos: {protocolo.cycles}</span>
-      </div>
-    </div>
-  )
-})
-
 export default function NuevoTratamientoPage() {
+  const { user } = useAuthContext()
+  const router = useRouter()
+  const [doctorProfileId, setDoctorProfileId] = useState<number | null>(null)
+  const [patients, setPatients] = useState<PatientProfileResponse[]>([])
+  const [isLoadingPatients, setIsLoadingPatients] = useState(true)
+  
   const [formData, setFormData] = useState({
-    pacienteId: "",
-    tipoTratamiento: "",
-    protocolo: "",
-    ciclosTotal: "",
-    fechaInicio: addDays(new Date(), 1),
-    frecuencia: "",
-    notas: "",
-    medicamentos: [] as string[],
-    efectosSecundarios: [] as string[],
-    objetivos: "",
-    contraindicaciones: "",
-    prioridad: "normal",
-    estado: "planificado",
-    medicoResponsable: "Dr. Carlos Mendoza",
-    ubicacion: "Sala de Infusiones",
-    duracionEstimada: "",
-    costoEstimado: "",
-    seguimiento: "",
-    customMedicamento: "",
-    customEfecto: ""
+    patientProfileId: "" as string | number,
+    type: "" as TreatmentType | "",
+    protocol: "",
+    totalCycles: "",
+    startDate: undefined as Date | undefined,
+    sessionDurationMinutes: "",
+    location: "",
+    medications: [] as string[],
+    notes: "",
+    preparationInstructions: ""
   })
+  
+  const [customMedication, setCustomMedication] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState(false)
 
-  const [medicamentoSeleccionado, setMedicamentoSeleccionado] = useState("")
-  const [efectoSeleccionado, setEfectoSeleccionado] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [selectedPaciente, setSelectedPaciente] = useState<typeof mockPacientes[0] | null>(null)
+  useEffect(() => {
+    if (user && isDoctorUser(user)) {
+      setDoctorProfileId(user.profile.id)
+    }
+  }, [user])
 
-  const handleInputChange = useCallback((field: string, value: string | Date) => {
+  useEffect(() => {
+    const loadPatients = async () => {
+      if (!doctorProfileId) return
+
+      try {
+        setIsLoadingPatients(true)
+        const patientsList = await doctors.getPatients(doctorProfileId)
+        setPatients(patientsList)
+      } catch (err) {
+        console.error('Error loading patients:', err)
+        setError('Error al cargar la lista de pacientes')
+      } finally {
+        setIsLoadingPatients(false)
+      }
+    }
+
+    loadPatients()
+  }, [doctorProfileId])
+
+  const handleInputChange = (field: string, value: string | Date | number | undefined) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
-  }, [])
+    setError("")
+  }
 
-  const handlePacienteChange = useCallback((pacienteId: string) => {
-    const paciente = mockPacientes.find(p => p.id.toString() === pacienteId)
-    setSelectedPaciente(paciente || null)
-    setFormData((prev) => ({ ...prev, pacienteId }))
-  }, [])
-
-  const agregarMedicamento = useCallback(() => {
-    if (medicamentoSeleccionado && !formData.medicamentos.includes(medicamentoSeleccionado)) {
+  const addMedication = (medication: string) => {
+    if (medication && !formData.medications.includes(medication)) {
       setFormData((prev) => ({
         ...prev,
-        medicamentos: [...prev.medicamentos, medicamentoSeleccionado],
+        medications: [...prev.medications, medication]
       }))
-      setMedicamentoSeleccionado("")
     }
-  }, [medicamentoSeleccionado, formData.medicamentos])
+  }
 
-  const agregarEfectoSecundario = useCallback(() => {
-    if (efectoSeleccionado && !formData.efectosSecundarios.includes(efectoSeleccionado)) {
-      setFormData((prev) => ({
-        ...prev,
-        efectosSecundarios: [...prev.efectosSecundarios, efectoSeleccionado],
-      }))
-      setEfectoSeleccionado("")
-    }
-  }, [efectoSeleccionado, formData.efectosSecundarios])
-
-  const removerMedicamento = useCallback((medicamento: string) => {
+  const removeMedication = (medication: string) => {
     setFormData((prev) => ({
       ...prev,
-      medicamentos: prev.medicamentos.filter((m) => m !== medicamento),
+      medications: prev.medications.filter((m) => m !== medication)
     }))
-  }, [])
+  }
 
-  const removerEfectoSecundario = useCallback((efecto: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      efectosSecundarios: prev.efectosSecundarios.filter((e) => e !== efecto),
-    }))
-  }, [])
+  const handleAddCustomMedication = () => {
+    if (customMedication.trim()) {
+      addMedication(customMedication.trim())
+      setCustomMedication("")
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsSubmitting(true)
+    setIsLoading(true)
+    setError("")
 
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
+    if (!doctorProfileId) {
+      setError("Error: No se pudo identificar el médico")
+      setIsLoading(false)
+      return
+    }
 
-    // Here you would typically send the data to your backend
-    console.log("Treatment data:", {
-      ...formData,
-      paciente: selectedPaciente,
-      protocoloDetalle: protocolosDisponibles.find(p => p.name === formData.protocolo)
-    })
-    
-    setIsSubmitting(false)
-    
-    // Redirect to treatments page after successful submission
-    window.location.href = "/dashboard/medico/tratamientos"
+    // Validaciones
+    if (!formData.patientProfileId || formData.patientProfileId === "" || !formData.type || !formData.protocol || !formData.totalCycles || !formData.startDate) {
+      setError("Por favor completa todos los campos obligatorios")
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      const treatmentData: CreateTreatmentRequest = {
+        type: formData.type as TreatmentType,
+        protocol: formData.protocol,
+        totalCycles: parseInt(formData.totalCycles),
+        startDate: format(formData.startDate, 'yyyy-MM-dd'),
+        sessionDurationMinutes: formData.sessionDurationMinutes ? parseInt(formData.sessionDurationMinutes) : undefined,
+        location: formData.location || undefined,
+        medications: formData.medications.length > 0 ? formData.medications : undefined,
+        notes: formData.notes || undefined,
+        preparationInstructions: formData.preparationInstructions || undefined
+      }
+
+      const patientId = typeof formData.patientProfileId === 'string' 
+        ? parseInt(formData.patientProfileId) 
+        : formData.patientProfileId;
+      
+      await treatments.create(doctorProfileId, patientId, treatmentData)
+      setSuccess(true)
+
+      setTimeout(() => {
+        router.push("/dashboard/medico/tratamientos")
+      }, 2000)
+    } catch (err) {
+      console.error('Error creating treatment:', err)
+      setError(err instanceof Error ? err.message : "Error al crear el tratamiento")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const protocolosDisponibles = useMemo(() => 
-    formData.tipoTratamiento
-      ? protocolos[formData.tipoTratamiento as keyof typeof protocolos] || []
-      : [],
-    [formData.tipoTratamiento]
-  )
+  if (success) {
+    return (
+      <AuthGuard requiredRole="DOCTOR">
+        <DashboardLayout>
+          <div className="max-w-2xl mx-auto py-12">
+            <Card className="text-center">
+              <CardContent className="p-8">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="h-8 w-8 text-primary" />
+                </div>
+                <h2 className="text-2xl font-bold mb-2">¡Tratamiento creado exitosamente!</h2>
+                <p className="text-muted-foreground mb-6">
+                  El tratamiento ha sido registrado y está disponible para el paciente.
+                </p>
+                <div className="space-y-2">
+                  <Button asChild className="w-full">
+                    <Link href="/dashboard/medico/tratamientos">Ver Tratamientos</Link>
+                  </Button>
+                  <Button variant="outline" asChild className="w-full bg-transparent">
+                    <Link href="/dashboard/medico/tratamientos/nuevo">Crear Otro Tratamiento</Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </DashboardLayout>
+      </AuthGuard>
+    )
+  }
 
-  const protocoloSeleccionado = useMemo(() => 
-    protocolosDisponibles.find(p => p.name === formData.protocolo),
-    [protocolosDisponibles, formData.protocolo]
-  )
-
-  const isFormValid = useMemo(() => 
-    formData.pacienteId && formData.tipoTratamiento && formData.protocolo && formData.ciclosTotal && formData.fechaInicio,
-    [formData.pacienteId, formData.tipoTratamiento, formData.protocolo, formData.ciclosTotal, formData.fechaInicio]
+  const selectedPatient: PatientProfileResponse | undefined = patients.find(p => 
+    p.id === (typeof formData.patientProfileId === 'string' ? parseInt(formData.patientProfileId) : formData.patientProfileId)
   )
 
   return (
-    <AuthGuard requiredUserType="medico">
-      <DashboardLayout userType="medico">
-        <div className="space-y-6">
+    <AuthGuard requiredRole="DOCTOR">
+      <DashboardLayout>
+        <div className="max-w-5xl mx-auto space-y-6">
           {/* Header */}
-          <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" asChild>
+          <div>
               <Link href="/dashboard/medico/tratamientos">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Volver
+              <Button variant="ghost" className="mb-4">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Volver a tratamientos
+              </Button>
               </Link>
-            </Button>
-            <div>
               <h1 className="text-3xl font-bold text-foreground">Nuevo Tratamiento</h1>
-              <p className="text-muted-foreground mt-1">Crear un nuevo protocolo de tratamiento para un paciente</p>
-            </div>
+            <p className="text-muted-foreground">Registra un nuevo tratamiento oncológico para un paciente</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Información básica */}
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Patient Selection */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5 text-primary" />
-                    Información del Paciente
+                  <User className="h-5 w-5" />
+                  Selección de Paciente
                   </CardTitle>
-                  <CardDescription>Selecciona el paciente y tipo de tratamiento</CardDescription>
+                <CardDescription>Elige el paciente que recibirá el tratamiento</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="paciente">Paciente *</Label>
-                    <Select value={formData.pacienteId} onValueChange={handlePacienteChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar paciente" />
+                  <Label htmlFor="patient">
+                    Paciente <span className="text-destructive">*</span>
+                  </Label>
+                  <Select
+                    value={formData.patientProfileId ? formData.patientProfileId.toString() : ""}
+                    onValueChange={(value) => handleInputChange("patientProfileId", parseInt(value))}
+                    disabled={isLoadingPatients}
+                  >
+                    <SelectTrigger id="patient">
+                      <SelectValue placeholder={isLoadingPatients ? "Cargando pacientes..." : "Selecciona un paciente"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {mockPacientes.map((paciente) => (
-                          <SelectItem key={paciente.id} value={paciente.id.toString()}>
-                            <div>
-                              <div className="font-medium">{paciente.nombre}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {paciente.diagnostico} • {paciente.estadio} • ID: {paciente.pacienteId}
+                      {patients.length === 0 && !isLoadingPatients ? (
+                        <div className="p-2 text-sm text-muted-foreground text-center">
+                          No hay pacientes registrados
                               </div>
-                            </div>
+                      ) : (
+                        patients.map((patient) => (
+                          <SelectItem key={patient.id} value={patient.id.toString()}>
+                            {patient.firstName} {patient.lastName} - {patient.cancerType || "Sin diagnóstico"}
                           </SelectItem>
-                        ))}
+                        ))
+                      )}
                       </SelectContent>
                     </Select>
                   </div>
 
-                   {selectedPaciente && <PacienteCard paciente={selectedPaciente} />}
-
-                  <div className="space-y-2">
-                    <Label htmlFor="tipoTratamiento">Tipo de Tratamiento *</Label>
-                    <Select
-                      value={formData.tipoTratamiento}
-                      onValueChange={(value) => handleInputChange("tipoTratamiento", value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Quimioterapia">Quimioterapia</SelectItem>
-                        <SelectItem value="Radioterapia">Radioterapia</SelectItem>
-                        <SelectItem value="Inmunoterapia">Inmunoterapia</SelectItem>
-                        <SelectItem value="Terapia dirigida">Terapia dirigida</SelectItem>
-                        <SelectItem value="Cirugía">Cirugía</SelectItem>
-                      </SelectContent>
-                    </Select>
+                {selectedPatient && (
+                  <div className="p-4 bg-accent/10 rounded-lg">
+                    <h4 className="font-medium">{selectedPatient.firstName} {selectedPatient.lastName}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedPatient.cancerType} {selectedPatient.cancerStage && `- ${selectedPatient.cancerStage}`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">ID: {selectedPatient.profileId}</p>
                   </div>
+                )}
                 </CardContent>
               </Card>
 
-              {/* Protocolo y Programación */}
+            {/* Treatment Details */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <Activity className="h-5 w-5 text-secondary" />
-                    Protocolo y Programación
+                  <Activity className="h-5 w-5" />
+                  Detalles del Tratamiento
                   </CardTitle>
-                  <CardDescription>Configuración del protocolo de tratamiento</CardDescription>
+                <CardDescription>Información básica del protocolo de tratamiento</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="protocolo">Protocolo *</Label>
+                    <Label htmlFor="type">
+                      Tipo de Tratamiento <span className="text-destructive">*</span>
+                    </Label>
                     <Select
-                      value={formData.protocolo}
-                      onValueChange={(value) => handleInputChange("protocolo", value)}
-                      disabled={!formData.tipoTratamiento}
+                      value={formData.type}
+                      onValueChange={(value) => handleInputChange("type", value as TreatmentType)}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar protocolo" />
+                      <SelectTrigger id="type">
+                        <SelectValue placeholder="Selecciona el tipo" />
                       </SelectTrigger>
                       <SelectContent>
-                        {protocolosDisponibles.map((protocolo) => (
-                          <SelectItem key={protocolo.name} value={protocolo.name}>
-                            <div>
-                              <div className="font-medium">{protocolo.name}</div>
-                              <div className="text-xs text-muted-foreground">{protocolo.description}</div>
-                            </div>
+                        {treatmentTypes.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>
+                            {type.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                     {protocoloSeleccionado && <ProtocoloInfo protocolo={protocoloSeleccionado} />}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="ciclosTotal">Ciclos Totales *</Label>
-                      <Input
-                        id="ciclosTotal"
-                        type="number"
-                        min="1"
-                        max="20"
-                        value={formData.ciclosTotal}
-                        onChange={(e) => handleInputChange("ciclosTotal", e.target.value)}
-                        placeholder="Ej: 6"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="frecuencia">Frecuencia</Label>
-                      <Select value={formData.frecuencia} onValueChange={(value) => handleInputChange("frecuencia", value)}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccionar frecuencia" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="semanal">Semanal</SelectItem>
-                          <SelectItem value="cada-2-semanas">Cada 2 semanas</SelectItem>
-                          <SelectItem value="cada-3-semanas">Cada 3 semanas</SelectItem>
-                          <SelectItem value="mensual">Mensual</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="fechaInicio">Fecha de Inicio *</Label>
+                    <Label htmlFor="protocol">
+                      Protocolo <span className="text-destructive">*</span>
+                    </Label>
+                    {formData.type && protocolos[formData.type as TreatmentType] ? (
+                      <Select
+                        value={formData.protocol}
+                        onValueChange={(value) => handleInputChange("protocol", value)}
+                      >
+                        <SelectTrigger id="protocol">
+                          <SelectValue placeholder="Selecciona un protocolo" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {protocolos[formData.type as TreatmentType].map((protocolo) => (
+                            <SelectItem key={protocolo} value={protocolo}>
+                              {protocolo}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="otro">Otro (personalizado)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        id="protocol"
+                        placeholder="Primero selecciona un tipo de tratamiento"
+                        value={formData.protocol}
+                        onChange={(e) => handleInputChange("protocol", e.target.value)}
+                        disabled={!formData.type}
+                      />
+                    )}
+                    {formData.protocol === "otro" && (
+                      <Input
+                        placeholder="Especifica el protocolo personalizado"
+                        value={formData.protocol === "otro" ? "" : formData.protocol}
+                        onChange={(e) => handleInputChange("protocol", e.target.value)}
+                        className="mt-2"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                    <Label htmlFor="totalCycles">
+                      Ciclos Totales <span className="text-destructive">*</span>
+                    </Label>
+                      <Input
+                      id="totalCycles"
+                        type="number"
+                        min="1"
+                        placeholder="Ej: 6"
+                      value={formData.totalCycles}
+                      onChange={(e) => handleInputChange("totalCycles", e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>
+                      Fecha de Inicio <span className="text-destructive">*</span>
+                    </Label>
                     <Popover>
                       <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start bg-transparent">
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
                           <CalendarIcon className="mr-2 h-4 w-4" />
-                          {format(formData.fechaInicio, "dd/MM/yyyy")}
+                          {formData.startDate ? format(formData.startDate, "PPP", { locale: es }) : "Selecciona una fecha"}
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
                         <Calendar 
                           mode="single" 
-                          selected={formData.fechaInicio} 
-                          onSelect={(date) => date && handleInputChange("fechaInicio", date)} 
-                          locale={es} 
+                          selected={formData.startDate}
+                          onSelect={(date) => handleInputChange("startDate", date)}
                           initialFocus
                         />
                       </PopoverContent>
                     </Popover>
                   </div>
-                </CardContent>
-              </Card>
             </div>
 
-            {/* Medicamentos y Efectos Secundarios */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Pill className="h-5 w-5 text-accent" />
-                    Medicamentos
-                  </CardTitle>
-                  <CardDescription>Medicamentos del protocolo</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex gap-2">
-                    <Select value={medicamentoSeleccionado} onValueChange={setMedicamentoSeleccionado}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Seleccionar medicamento" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="sessionDuration">Duración de Sesión (minutos)</Label>
+                    <Input
+                      id="sessionDuration"
+                      type="number"
+                      min="15"
+                      placeholder="Ej: 120"
+                      value={formData.sessionDurationMinutes}
+                      onChange={(e) => handleInputChange("sessionDurationMinutes", e.target.value)}
+                    />
+                  </div>
+
+                    <div className="space-y-2">
+                    <Label htmlFor="location">Ubicación / Consultorio</Label>
+                    <Select
+                      value={formData.location}
+                      onValueChange={(value) => handleInputChange("location", value)}
+                    >
+                      <SelectTrigger id="location">
+                        <SelectValue placeholder="Selecciona una ubicación" />
                       </SelectTrigger>
                       <SelectContent>
-                        {medicamentosComunes.map((medicamento) => (
-                          <SelectItem key={medicamento} value={medicamento}>
-                            {medicamento}
+                        {locations.map((location) => (
+                          <SelectItem key={location} value={location}>
+                            {location}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <Button type="button" onClick={agregarMedicamento} disabled={!medicamentoSeleccionado}>
-                      <Plus className="w-4 h-4" />
+                      </div>
+                    </div>
+                </CardContent>
+              </Card>
+
+            {/* Medications */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                  <Pill className="h-5 w-5" />
+                  Medicamentos
+                  </CardTitle>
+                <CardDescription>Medicamentos incluidos en el protocolo</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                  <Select
+                    value=""
+                    onValueChange={(value) => addMedication(value)}
+                  >
+                      <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Selecciona un medicamento" />
+                      </SelectTrigger>
+                      <SelectContent>
+                      {commonMedications.map((med) => (
+                        <SelectItem key={med} value={med}>
+                          {med}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="O escribe un medicamento personalizado"
+                    value={customMedication}
+                    onChange={(e) => setCustomMedication(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleAddCustomMedication()
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleAddCustomMedication}
+                  >
+                    <Plus className="h-4 w-4" />
                     </Button>
                   </div>
 
-                  {formData.medicamentos.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>Medicamentos seleccionados:</Label>
+                {formData.medications.length > 0 && (
                       <div className="flex flex-wrap gap-2">
-                        {formData.medicamentos.map((medicamento) => (
-                          <Badge key={medicamento} variant="secondary" className="flex items-center gap-1">
-                            {medicamento}
+                    {formData.medications.map((med, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-1 bg-primary/10 text-primary px-3 py-1 rounded-full text-sm"
+                      >
+                        <span>{med}</span>
                             <button
                               type="button"
-                              onClick={() => removerMedicamento(medicamento)}
-                              className="ml-1 hover:text-red-600"
+                          onClick={() => removeMedication(med)}
+                          className="hover:text-destructive"
                             >
-                              <X className="w-3 h-3" />
+                          <X className="h-3 w-3" />
                             </button>
-                          </Badge>
-                        ))}
                       </div>
+                    ))}
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Activity className="h-5 w-5 text-destructive" />
-                    Efectos Secundarios Esperados
-                  </CardTitle>
-                  <CardDescription>Efectos adversos potenciales</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex gap-2">
-                    <Select value={efectoSeleccionado} onValueChange={setEfectoSeleccionado}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Seleccionar efecto secundario" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {efectosSecundariosComunes.map((efecto) => (
-                          <SelectItem key={efecto} value={efecto}>
-                            {efecto}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button type="button" onClick={agregarEfectoSecundario} disabled={!efectoSeleccionado}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-
-                  {formData.efectosSecundarios.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>Efectos secundarios esperados:</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {formData.efectosSecundarios.map((efecto) => (
-                          <Badge key={efecto} variant="outline" className="flex items-center gap-1 bg-orange-50 text-orange-700">
-                            {efecto}
-                            <button
-                              type="button"
-                              onClick={() => removerEfectoSecundario(efecto)}
-                              className="ml-1 hover:text-red-600"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Información adicional */}
+            {/* Additional Information */}
             <Card>
               <CardHeader>
                 <CardTitle>Información Adicional</CardTitle>
-                <CardDescription>Objetivos, notas y consideraciones especiales</CardDescription>
+                <CardDescription>Notas e instrucciones para el tratamiento</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="prioridad">Prioridad del Tratamiento</Label>
-                    <Select value={formData.prioridad} onValueChange={(value) => handleInputChange("prioridad", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar prioridad" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="normal">Normal</SelectItem>
-                        <SelectItem value="alta">Alta</SelectItem>
-                        <SelectItem value="urgente">Urgente</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="ubicacion">Ubicación del Tratamiento</Label>
-                    <Select value={formData.ubicacion} onValueChange={(value) => handleInputChange("ubicacion", value)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar ubicación" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Sala de Infusiones">Sala de Infusiones</SelectItem>
-                        <SelectItem value="Consultorio">Consultorio</SelectItem>
-                        <SelectItem value="Quirófano">Quirófano</SelectItem>
-                        <SelectItem value="Sala de Radioterapia">Sala de Radioterapia</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
                 <div className="space-y-2">
-                  <Label htmlFor="objetivos">Objetivos del Tratamiento</Label>
+                  <Label htmlFor="notes">Notas</Label>
                   <Textarea
-                    id="objetivos"
-                    value={formData.objetivos}
-                    onChange={(e) => handleInputChange("objetivos", e.target.value)}
-                    placeholder="Describe los objetivos principales del tratamiento..."
-                    rows={3}
+                    id="notes"
+                    placeholder="Observaciones generales sobre el tratamiento..."
+                    value={formData.notes}
+                    onChange={(e) => handleInputChange("notes", e.target.value)}
+                    rows={4}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="contraindicaciones">Contraindicaciones y Precauciones</Label>
+                  <Label htmlFor="preparation">Instrucciones de Preparación</Label>
                   <Textarea
-                    id="contraindicaciones"
-                    value={formData.contraindicaciones}
-                    onChange={(e) => handleInputChange("contraindicaciones", e.target.value)}
-                    placeholder="Menciona cualquier contraindicación o precaución especial..."
-                    rows={3}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="seguimiento">Plan de Seguimiento</Label>
-                  <Textarea
-                    id="seguimiento"
-                    value={formData.seguimiento}
-                    onChange={(e) => handleInputChange("seguimiento", e.target.value)}
-                    placeholder="Describe el plan de seguimiento y monitoreo..."
-                    rows={3}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="notas">Notas Adicionales</Label>
-                  <Textarea
-                    id="notas"
-                    value={formData.notas}
-                    onChange={(e) => handleInputChange("notas", e.target.value)}
-                    placeholder="Cualquier información adicional relevante..."
-                    rows={3}
+                    id="preparation"
+                    placeholder="Indicaciones para el paciente antes de cada sesión..."
+                    value={formData.preparationInstructions}
+                    onChange={(e) => handleInputChange("preparationInstructions", e.target.value)}
+                    rows={4}
                   />
                 </div>
               </CardContent>
             </Card>
 
-            {/* Resumen del Tratamiento */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Resumen del Tratamiento</CardTitle>
-                <CardDescription>Revisa la información antes de crear el tratamiento</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium text-muted-foreground">Paciente:</span>
-                    <p className="font-medium">{selectedPaciente?.nombre || "No seleccionado"}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">Tipo:</span>
-                    <p className="font-medium">{formData.tipoTratamiento || "No especificado"}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">Protocolo:</span>
-                    <p className="font-medium">{formData.protocolo || "No especificado"}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">Ciclos:</span>
-                    <p className="font-medium">{formData.ciclosTotal || "No especificado"}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">Fecha de Inicio:</span>
-                    <p className="font-medium">{format(formData.fechaInicio, "dd/MM/yyyy")}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium text-muted-foreground">Prioridad:</span>
-                    <p className="font-medium">{formData.prioridad || "Normal"}</p>
-                  </div>
-                </div>
-                {formData.medicamentos.length > 0 && (
-                  <div className="mt-4">
-                    <span className="font-medium text-muted-foreground">Medicamentos:</span>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {formData.medicamentos.map((medicamento, index) => (
-                        <span key={index} className="px-2 py-1 bg-secondary/10 text-secondary rounded-md text-xs">
-                          {medicamento}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Botones de acción */}
-            <div className="flex justify-end gap-4">
-              <Button variant="outline" asChild>
+            {/* Submit Button */}
+            <div className="flex gap-4 justify-end">
+              <Button type="button" variant="outline" asChild>
                 <Link href="/dashboard/medico/tratamientos">Cancelar</Link>
               </Button>
-              <Button 
-                type="submit" 
-                className="oncontrol-gradient text-white"
-                disabled={!isFormValid || isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Creando...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    Crear Tratamiento
-                  </>
-                )}
+              <Button type="submit" disabled={isLoading}>
+                <Save className="mr-2 h-4 w-4" />
+                {isLoading ? "Creando..." : "Crear Tratamiento"}
               </Button>
             </div>
           </form>
