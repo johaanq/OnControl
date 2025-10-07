@@ -657,34 +657,56 @@ class ApiClient {
       ...options,
     };
 
-    console.log('🔍 API Request:', {
-      url,
-      method: options.method || 'GET',
-      hasToken: !!this.token,
-      tokenPreview: this.token ? `${this.token.substring(0, 20)}...` : 'NO TOKEN',
-      headers: config.headers
-    });
+    // Debug logging (can be disabled in production)
+    const DEBUG_API = false; // Set to true to enable verbose logging
+    
+    if (DEBUG_API) {
+      console.log('🔍 API Request:', {
+        url,
+        method: options.method || 'GET',
+        hasToken: !!this.token,
+        tokenPreview: this.token ? `${this.token.substring(0, 20)}...` : 'NO TOKEN',
+        headers: config.headers
+      });
+    }
 
     try {
       const response = await fetch(url, config);
       
-      console.log('📡 API Response:', {
-        url,
-        status: response.status,
-        ok: response.ok
-      });
+      if (DEBUG_API) {
+        console.log('📡 API Response:', {
+          url,
+          status: response.status,
+          ok: response.ok
+        });
+      }
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('❌ API Error:', errorData);
+        
+        // Log 404 as info (expected when resource doesn't exist)
+        if (response.status === 404) {
+          console.log('ℹ️  API 404 - Resource not found:', { url, status: 404 });
+        } else {
+          // Log other errors as actual errors
+          console.error('❌ API Error:', { url, status: response.status, errorData });
+        }
+        
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
       const data = await response.json();
-      console.log('✅ API Success:', { url, data });
+      
+      if (DEBUG_API) {
+        console.log('✅ API Success:', { url, data });
+      }
+      
       return data;
     } catch (error) {
-      console.error('💥 API request failed:', { url, error });
+      // Only log if it's a network error (not an HTTP error already logged)
+      if (error instanceof TypeError) {
+        console.error('💥 Network error:', { url, error: error.message });
+      }
       throw error;
     }
   }

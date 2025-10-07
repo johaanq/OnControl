@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
+import { AuthGuard } from "@/components/auth-guard-updated"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { BackButton } from "@/components/ui/back-button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -20,27 +21,15 @@ import { Search, Plus, MoreHorizontal, Eye, Calendar, Phone, Mail, Activity } fr
 
 export default function PatientsPage() {
   const { user } = useAuthContext()
-  const [doctorProfileId, setDoctorProfileId] = useState<number | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
 
-  // Debug: Check authentication state
-  useEffect(() => {
-    console.log('=== AUTH DEBUG ===')
-    console.log('User:', user)
-    console.log('Token in localStorage:', localStorage.getItem('auth_token'))
-    console.log('Doctor Profile ID:', doctorProfileId)
-  }, [user, doctorProfileId])
-
-  useEffect(() => {
-    if (user && isDoctorUser(user)) {
-      setDoctorProfileId(user.profile.id)
-    }
-  }, [user])
+  // Get doctor profile ID directly from user
+  const doctorProfileId = user && isDoctorUser(user) ? user.profile.id : null
 
   const { patients: patientsList, isLoading, error, refetch } = useDoctorPatients(doctorProfileId)
 
-  const filteredPatients = patientsList.filter(patient => {
+  const filteredPatients = (patientsList || []).filter(patient => {
     // Filter by search term
     const searchMatch = searchTerm === "" || 
       patient.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -70,29 +59,34 @@ export default function PatientsPage() {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
-        <Loading message="Cargando pacientes..." />
-      </DashboardLayout>
+      <AuthGuard requiredRole="DOCTOR">
+        <DashboardLayout>
+          <Loading message="Cargando pacientes..." />
+        </DashboardLayout>
+      </AuthGuard>
     )
   }
 
   if (error) {
     return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-center">
-            <p className="text-destructive mb-4">{error}</p>
-            <Button onClick={() => refetch()}>
-              Reintentar
-            </Button>
+      <AuthGuard requiredRole="DOCTOR">
+        <DashboardLayout>
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <p className="text-destructive mb-4">{error}</p>
+              <Button onClick={() => refetch()}>
+                Reintentar
+              </Button>
+            </div>
           </div>
-        </div>
-      </DashboardLayout>
+        </DashboardLayout>
+      </AuthGuard>
     )
   }
 
   return (
-    <DashboardLayout>
+    <AuthGuard requiredRole="DOCTOR">
+      <DashboardLayout>
       <div className="space-y-6">
         <BackButton fallbackUrl="/dashboard/medico" label="Volver al dashboard" />
         
@@ -333,5 +327,6 @@ export default function PatientsPage() {
         )}
       </div>
     </DashboardLayout>
+    </AuthGuard>
   )
 }

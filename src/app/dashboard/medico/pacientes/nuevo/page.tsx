@@ -107,6 +107,24 @@ const medicamentosComunes = [
   "Tramadol"
 ]
 
+const relacionesEmergencia = [
+  "Esposo/a",
+  "Hijo/a",
+  "Padre",
+  "Madre",
+  "Hermano/a",
+  "Abuelo/a",
+  "Nieto/a",
+  "Tío/a",
+  "Sobrino/a",
+  "Primo/a",
+  "Pareja",
+  "Amigo/a cercano",
+  "Vecino/a",
+  "Cuidador/a",
+  "Otro"
+]
+
 export default function NuevoPacientePage() {
   const { user } = useAuthContext()
   const router = useRouter()
@@ -625,12 +643,21 @@ export default function NuevoPacientePage() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="emergencyContactRelationship">Relación</Label>
-                    <Input
-                      id="emergencyContactRelationship"
+                    <Select
                       value={formData.emergencyContactRelationship}
-                      onChange={(e) => handleInputChange("emergencyContactRelationship", e.target.value)}
-                      placeholder="Ej: Esposo/a, Hijo/a, Hermano/a"
-                    />
+                      onValueChange={(value) => handleInputChange("emergencyContactRelationship", value)}
+                    >
+                      <SelectTrigger id="emergencyContactRelationship">
+                        <SelectValue placeholder="Selecciona la relación" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {relacionesEmergencia.map((relacion) => (
+                          <SelectItem key={relacion} value={relacion}>
+                            {relacion}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </CardContent>

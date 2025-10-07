@@ -54,16 +54,26 @@ export default function TratamientoPacientePage() {
         setIsLoading(true)
         setError(null)
 
-        const [currentTreatment, sessions] = await Promise.all([
-          treatments.getPatientCurrent(patientProfileId),
-          treatments.getUpcomingSessions(patientProfileId)
-        ])
+        const currentTreatment = await treatments.getPatientCurrent(patientProfileId)
+        
+        // Si no hay tratamiento, es un caso válido (no un error)
+        if (!currentTreatment) {
+          setTreatment(null)
+          setUpcomingSessions([])
+          setIsLoading(false)
+          return
+        }
 
+        const sessions = await treatments.getUpcomingSessions(patientProfileId).catch(() => [])
+        
         setTreatment(currentTreatment)
         setUpcomingSessions(sessions)
       } catch (err) {
         console.error('Error loading treatment:', err)
-        setError('Error al cargar el tratamiento')
+        // Solo mostramos error si fue un problema real del servidor
+        setError('Ocurrió un error al cargar el tratamiento')
+        setTreatment(null)
+        setUpcomingSessions([])
       } finally {
         setIsLoading(false)
       }
