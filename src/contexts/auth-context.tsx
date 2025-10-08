@@ -4,7 +4,6 @@ import React, { createContext, useContext, ReactNode } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import type { 
   LoginRequest, 
-  RegisterOrganizationRequest,
   LoginResponse 
 } from '@/lib/api'
 import type { User } from '@/types/organization'
@@ -15,7 +14,6 @@ interface AuthContextType {
   isLoading: boolean
   isAuthenticated: boolean
   login: (credentials: LoginRequest) => Promise<LoginResponse>
-  registerOrganization: (data: RegisterOrganizationRequest) => Promise<any>
   logout: () => Promise<void>
   refreshUser: () => Promise<void>
 }

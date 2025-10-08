@@ -177,28 +177,28 @@ export default function HistorialPage() {
                   size="sm"
                   onClick={() => setFiltroTipo("CONSULTATION")}
                 >
-                  Consultas ({historyEntries.filter(e => e.entryType === "CONSULTATION").length})
+                  Consultas ({historyEntries.filter(e => e.type === "CONSULTATION").length})
                 </Button>
                 <Button
                   variant={filtroTipo === "PROCEDURE" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setFiltroTipo("PROCEDURE")}
                 >
-                  Procedimientos ({historyEntries.filter(e => e.entryType === "PROCEDURE").length})
+                  Procedimientos ({historyEntries.filter(e => e.type === "PROCEDURE").length})
                 </Button>
                 <Button
                   variant={filtroTipo === "SURGERY" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setFiltroTipo("SURGERY")}
                 >
-                  Cirugías ({historyEntries.filter(e => e.entryType === "SURGERY").length})
+                  Cirugías ({historyEntries.filter(e => e.type === "SURGERY").length})
                 </Button>
                 <Button
                   variant={filtroTipo === "LAB_RESULT" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setFiltroTipo("LAB_RESULT")}
                 >
-                  Laboratorio ({historyEntries.filter(e => e.entryType === "LAB_RESULT").length})
+                  Laboratorio ({historyEntries.filter(e => e.type === "LAB_RESULT").length})
                 </Button>
               </div>
 
@@ -217,7 +217,7 @@ export default function HistorialPage() {
                       <CardHeader>
                         <div className="flex items-start justify-between">
                           <div className="flex items-center gap-3">
-                            {getTypeIcon(entry.entryType)}
+                            {getTypeIcon(entry.type)}
                             <div>
                               <CardTitle className="text-lg">{entry.title}</CardTitle>
                               <CardDescription>
@@ -226,12 +226,12 @@ export default function HistorialPage() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <Badge className={getTypeColor(entry.entryType)}>
-                              {typeNames[entry.entryType] || entry.entryType}
+                            <Badge className={getTypeColor(entry.type)}>
+                              {typeNames[entry.type] || entry.type}
                             </Badge>
                             <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
-                              {new Date(entry.entryDate).toLocaleDateString('es-ES')}
+                              {new Date(entry.date).toLocaleDateString('es-ES')}
                             </p>
                           </div>
                         </div>
@@ -239,33 +239,9 @@ export default function HistorialPage() {
                       <CardContent className="space-y-4">
                         {/* Description */}
                         {entry.description && (
-                          <div>
-                            <p className="text-sm font-medium mb-1">Descripción:</p>
-                            <p className="text-sm text-muted-foreground">{entry.description}</p>
-                          </div>
-                        )}
-
-                        {/* Diagnosis */}
-                        {entry.diagnosis && (
-                          <div>
-                            <p className="text-sm font-medium mb-1">Diagnóstico:</p>
-                            <p className="text-sm text-muted-foreground">{entry.diagnosis}</p>
-                          </div>
-                        )}
-
-                        {/* Treatment */}
-                        {entry.treatment && (
-                          <div>
-                            <p className="text-sm font-medium mb-1">Tratamiento:</p>
-                            <p className="text-sm text-muted-foreground">{entry.treatment}</p>
-                          </div>
-                        )}
-
-                        {/* Notes */}
-                        {entry.notes && (
                           <Alert>
                             <FileText className="h-4 w-4" />
-                            <AlertDescription>{entry.notes}</AlertDescription>
+                            <AlertDescription>{entry.description}</AlertDescription>
                           </Alert>
                         )}
 
@@ -315,19 +291,13 @@ export default function HistorialPage() {
                             {severityNames[allergy.severity] || allergy.severity}
                           </Badge>
                         </div>
-                        <CardDescription>{allergy.allergyType}</CardDescription>
+                        <CardDescription>{allergy.type}</CardDescription>
                       </CardHeader>
                       <CardContent>
                         {allergy.reaction && (
                           <div className="mb-3">
                             <p className="text-sm font-medium mb-1">Reacción:</p>
                             <p className="text-sm text-muted-foreground">{allergy.reaction}</p>
-                          </div>
-                        )}
-                        {allergy.notes && (
-                          <div>
-                            <p className="text-sm font-medium mb-1">Notas:</p>
-                            <p className="text-sm text-muted-foreground">{allergy.notes}</p>
                           </div>
                         )}
                         {allergy.diagnosedDate && (

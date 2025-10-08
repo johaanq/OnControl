@@ -267,7 +267,7 @@ export default function PacienteDashboard() {
                     ))
                   )}
                 </div>
-                {dashboard.upcomingAppointments.length > 0 && (
+                {dashboard.upcomingAppointmentsList && dashboard.upcomingAppointmentsList.length > 0 && (
                   <div className="mt-4">
                     <Button asChild variant="outline" className="w-full hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer">
                       <Link href="/dashboard/paciente/citas">

@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Loading } from "@/components/loading"
 import { useAuthContext } from "@/contexts/auth-context"
 import { doctors } from "@/lib/api"
-import type { PatientResponse } from "@/lib/api"
+import type { PatientProfileResponse } from "@/lib/api"
 import { isPatientUser } from "@/types/organization"
 import { 
   User, 
@@ -28,7 +28,7 @@ import {
 
 export default function PacientePerfilPage() {
   const { user } = useAuthContext()
-  const [patientData, setPatientData] = useState<PatientResponse | null>(null)
+  const [patientData, setPatientData] = useState<PatientProfileResponse | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -41,25 +41,8 @@ export default function PacientePerfilPage() {
 
       try {
         setIsLoading(true)
-        // Get patient profile through their doctor (assuming they have one assigned)
-        // For now, we'll use the data from the auth context
-        setPatientData({
-          id: user.profile.id,
-          profileId: user.profile.profileId,
-          firstName: user.profile.firstName,
-          lastName: user.profile.lastName,
-          email: user.profile.email,
-          dateOfBirth: user.profile.dateOfBirth,
-          phone: user.profile.phone,
-          address: user.profile.address,
-          status: user.profile.status,
-          doctorName: user.profile.doctorName,
-          diagnosisDate: user.profile.diagnosisDate,
-          cancerType: user.profile.cancerType,
-          cancerStage: user.profile.cancerStage,
-          activeTreatments: 0,
-          upcomingAppointments: 0
-        } as PatientResponse)
+        // Use the patient profile from auth context
+        setPatientData(user.profile as PatientProfileResponse)
       } catch (err) {
         console.error('Error loading patient profile:', err)
         setError('Error al cargar el perfil')
@@ -181,13 +164,13 @@ export default function PacientePerfilPage() {
                     {patientData.firstName} {patientData.lastName}
                   </h2>
                   <p className="text-lg text-muted-foreground">
-                    {calculateAge(patientData.dateOfBirth)} años
+                    {patientData.birthDate ? calculateAge(patientData.birthDate) : 'N/A'} años
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
                     ID: {patientData.profileId}
                   </p>
                   <div className="flex flex-wrap gap-2 mt-4 justify-center md:justify-start">
-                    <Badge variant="outline">{patientData.status === 'ACTIVE' ? 'Activo' : patientData.status}</Badge>
+                    <Badge variant="outline">{patientData.isActive ? 'Activo' : 'Inactivo'}</Badge>
                     {patientData.doctorName && (
                       <span className="text-sm text-muted-foreground">
                         Médico tratante: {patientData.doctorName}
@@ -260,7 +243,7 @@ export default function PacientePerfilPage() {
                   <Input
                     id="dateOfBirth"
                     type="date"
-                    value={patientData.dateOfBirth}
+                    value={patientData.birthDate || ''}
                     disabled={true}
                     className="bg-muted"
                   />
@@ -326,7 +309,7 @@ export default function PacientePerfilPage() {
                 <div className="space-y-2">
                   <Label>Estado</Label>
                   <Input
-                    value={patientData.status === 'ACTIVE' ? 'Activo' : patientData.status}
+                    value={patientData.isActive ? 'Activo' : 'Inactivo'}
                     disabled={true}
                     className="bg-muted"
                   />

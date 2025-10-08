@@ -46,7 +46,7 @@ export function PatientRegistrationForm({
     email: '',
     password: '',
     phone: '',
-    dateOfBirth: '',
+    birthDate: '',
     bloodType: '',
     allergies: '',
     emergencyContactName: '',
@@ -191,12 +191,12 @@ export function PatientRegistrationForm({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="dateOfBirth">Fecha de Nacimiento</Label>
+                <Label htmlFor="birthDate">Fecha de Nacimiento</Label>
                 <Input
-                  id="dateOfBirth"
+                  id="birthDate"
                   type="date"
-                  value={formData.dateOfBirth || ''}
-                  onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                  value={formData.birthDate || ''}
+                  onChange={(e) => handleInputChange('birthDate', e.target.value)}
                 />
               </div>
 

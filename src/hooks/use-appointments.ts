@@ -1,18 +1,18 @@
 "use client"
 
 import { useState, useCallback } from 'react'
-import { appointments, type AppointmentRequest, type AppointmentResponse } from '@/lib/api'
+import { appointments, type CreateAppointmentRequest, type AppointmentResponse } from '@/lib/api'
 
 export function useAppointments() {
   const [appointmentsList, setAppointmentsList] = useState<AppointmentResponse[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const loadAppointments = useCallback(async (startDate?: string, endDate?: string) => {
+  const loadAppointments = useCallback(async (doctorProfileId: number) => {
     try {
       setIsLoading(true)
       setError(null)
-      const data = await appointments.getDoctorAppointments(startDate, endDate)
+      const data = await appointments.getDoctorAppointments(doctorProfileId)
       setAppointmentsList(data)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al cargar las citas')
@@ -21,11 +21,11 @@ export function useAppointments() {
     }
   }, [])
 
-  const loadPatientAppointments = useCallback(async (startDate?: string, endDate?: string) => {
+  const loadPatientAppointments = useCallback(async (patientProfileId: number) => {
     try {
       setIsLoading(true)
       setError(null)
-      const data = await appointments.getPatientAppointments(startDate, endDate)
+      const data = await appointments.getPatientAppointments(patientProfileId)
       setAppointmentsList(data)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error al cargar las citas')
@@ -34,11 +34,11 @@ export function useAppointments() {
     }
   }, [])
 
-  const createAppointment = useCallback(async (appointmentData: AppointmentRequest) => {
+  const createAppointment = useCallback(async (doctorProfileId: number, patientProfileId: number, appointmentData: CreateAppointmentRequest) => {
     try {
       setIsLoading(true)
       setError(null)
-      const newAppointment = await appointments.create(appointmentData)
+      const newAppointment = await appointments.create(doctorProfileId, patientProfileId, appointmentData)
       setAppointmentsList(prev => [...prev, newAppointment])
       return newAppointment
     } catch (err: unknown) {
@@ -49,7 +49,7 @@ export function useAppointments() {
     }
   }, [])
 
-  const updateAppointmentStatus = useCallback(async (id: number, status: string, reason?: string) => {
+  const updateAppointmentStatus = useCallback(async (id: number, status: AppointmentResponse['status'], reason?: string) => {
     try {
       setIsLoading(true)
       setError(null)
@@ -82,15 +82,6 @@ export function useAppointments() {
     }
   }, [])
 
-  const getAppointmentTypes = useCallback(async () => {
-    try {
-      return await appointments.getTypes()
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al cargar los tipos de cita')
-      throw err
-    }
-  }, [])
-
   return {
     appointmentsList,
     isLoading,
@@ -100,6 +91,5 @@ export function useAppointments() {
     createAppointment,
     updateAppointmentStatus,
     getAppointmentById,
-    getAppointmentTypes,
   }
 }

@@ -127,7 +127,10 @@ export function useAuth() {
       
       // Store user data in localStorage
       if (typeof window !== 'undefined') {
-        localStorage.setItem('auth_token', user.token)
+        const token = 'token' in user ? user.token : '';
+        if (token) {
+          localStorage.setItem('auth_token', token)
+        }
         localStorage.setItem('userType', user.type)
         localStorage.setItem('userData', JSON.stringify(user))
         if (user.type === 'ORGANIZATION') {
@@ -180,7 +183,10 @@ export function useAuth() {
       
       // Store user data in localStorage
       if (typeof window !== 'undefined') {
-        localStorage.setItem('auth_token', user.token)
+        const token = 'token' in user ? user.token : '';
+        if (token) {
+          localStorage.setItem('auth_token', token)
+        }
         localStorage.setItem('userType', user.type)
         localStorage.setItem('userData', JSON.stringify(user))
         if (user.type === 'ORGANIZATION') {
