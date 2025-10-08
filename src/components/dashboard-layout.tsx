@@ -77,7 +77,6 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
   const organizacionNavItems = useMemo(() => [
     { href: "/dashboard/organizacion", icon: Home, label: "Dashboard", badge: null },
     { href: "/dashboard/organizacion/doctores", icon: Stethoscope, label: "Doctores", badge: null },
-    { href: "/dashboard/organizacion/reportes", icon: BarChart3, label: "Reportes", badge: null },
   ], [])
 
   const medicoNavItems = useMemo(() => [
