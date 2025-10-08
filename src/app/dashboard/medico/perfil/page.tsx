@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Loading } from "@/components/loading"
 import { useAuthContext } from "@/contexts/auth-context"
 import { doctors } from "@/lib/api"
-import type { DoctorResponse } from "@/lib/api"
+import type { DoctorProfileResponse } from "@/lib/api"
 import { isDoctorUser } from "@/types/organization"
 import { 
   User, 
@@ -30,7 +30,7 @@ import {
 
 export default function MedicoPerfilPage() {
   const { user } = useAuthContext()
-  const [doctorData, setDoctorData] = useState<DoctorResponse | null>(null)
+  const [doctorData, setDoctorData] = useState<DoctorProfileResponse | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -38,22 +38,11 @@ export default function MedicoPerfilPage() {
   const [success, setSuccess] = useState("")
 
   useEffect(() => {
-    const loadDoctorProfile = async () => {
-      if (!user || !isDoctorUser(user)) return
+    if (!user || !isDoctorUser(user)) return
 
-      try {
-        setIsLoading(true)
-        const profile = await doctors.getProfile(user.profile.id)
-        setDoctorData(profile)
-      } catch (err) {
-        console.error('Error loading doctor profile:', err)
-        setError('Error al cargar el perfil')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadDoctorProfile()
+    // Use the profile data from the authenticated user
+    setDoctorData(user.profile as DoctorProfileResponse)
+    setIsLoading(false)
   }, [user])
 
   const handleSave = async () => {
@@ -64,16 +53,17 @@ export default function MedicoPerfilPage() {
     setSuccess("")
 
     try {
-      const updatedProfile = await doctors.updateProfile(user.profile.id, {
-        specialty: doctorData.specialty,
-        licenseNumber: doctorData.licenseNumber,
-        phone: doctorData.phone,
-        bio: doctorData.bio || undefined,
-        officeAddress: doctorData.officeAddress || undefined
-      })
+      // TODO: Implement profile update endpoint
+      // const updatedProfile = await doctors.updateProfile(user.profile.id, {
+      //   specialty: doctorData.specialty,
+      //   licenseNumber: doctorData.licenseNumber,
+      //   phone: doctorData.phone,
+      //   bio: doctorData.bio || undefined,
+      //   officeAddress: doctorData.officeAddress || undefined
+      // })
       
-      setDoctorData(updatedProfile)
-      setSuccess("Perfil actualizado correctamente")
+      // setDoctorData(updatedProfile)
+      setError("La actualización de perfil aún no está implementada en el backend")
       setIsEditing(false)
     } catch (err) {
       console.error('Error updating profile:', err)
@@ -161,7 +151,7 @@ export default function MedicoPerfilPage() {
                   <h2 className="text-2xl font-bold">
                     Dr. {doctorData.firstName} {doctorData.lastName}
                   </h2>
-                  <p className="text-lg text-muted-foreground">{doctorData.specialty}</p>
+                  <p className="text-lg text-muted-foreground">{doctorData.specialization}</p>
                   <p className="text-sm text-muted-foreground mt-1">
                     ID: {doctorData.profileId}
                   </p>
@@ -250,8 +240,8 @@ export default function MedicoPerfilPage() {
                   <Label htmlFor="specialty">Especialidad</Label>
                   <Input
                     id="specialty"
-                    value={doctorData.specialty}
-                    onChange={(e) => setDoctorData({ ...doctorData, specialty: e.target.value })}
+                    value={doctorData.specialization}
+                    onChange={(e) => setDoctorData({ ...doctorData, specialization: e.target.value })}
                     disabled={!isEditing}
                   />
                 </div>
@@ -281,10 +271,10 @@ export default function MedicoPerfilPage() {
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="status">Estado</Label>
+                  <Label htmlFor="status">Disponibilidad</Label>
                   <Input
                     id="status"
-                    value={doctorData.status === 'ACTIVE' ? 'Activo' : doctorData.status}
+                    value={doctorData.isAvailable ? 'Disponible' : 'No disponible'}
                     disabled={true}
                     className="bg-muted"
                   />
@@ -319,8 +309,8 @@ export default function MedicoPerfilPage() {
                 <Label htmlFor="officeAddress">Dirección del Consultorio</Label>
                 <Textarea
                   id="officeAddress"
-                  value={doctorData.officeAddress || ""}
-                  onChange={(e) => setDoctorData({ ...doctorData, officeAddress: e.target.value })}
+                  value={doctorData.address || ""}
+                  onChange={(e) => setDoctorData({ ...doctorData, address: e.target.value })}
                   disabled={!isEditing}
                   rows={3}
                   placeholder="Dirección completa de tu consultorio..."
@@ -329,7 +319,8 @@ export default function MedicoPerfilPage() {
             </CardContent>
           </Card>
 
-          {/* Statistics */}
+          {/* Statistics - TODO: Add when statistics endpoint is implemented */}
+          {/* 
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -341,20 +332,21 @@ export default function MedicoPerfilPage() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="text-center p-4 border rounded-lg">
-                  <p className="text-2xl font-bold text-primary">{doctorData.activePatients}</p>
+                  <p className="text-2xl font-bold text-primary">0</p>
                   <p className="text-sm text-muted-foreground">Pacientes Activos</p>
                 </div>
                 <div className="text-center p-4 border rounded-lg">
-                  <p className="text-2xl font-bold text-primary">{doctorData.totalPatients}</p>
+                  <p className="text-2xl font-bold text-primary">0</p>
                   <p className="text-sm text-muted-foreground">Total de Pacientes</p>
                 </div>
                 <div className="text-center p-4 border rounded-lg">
-                  <p className="text-2xl font-bold text-primary">{doctorData.totalTreatments}</p>
+                  <p className="text-2xl font-bold text-primary">0</p>
                   <p className="text-sm text-muted-foreground">Tratamientos Administrados</p>
                 </div>
               </div>
             </CardContent>
           </Card>
+          */}
 
           {/* Save Button */}
           {isEditing && (

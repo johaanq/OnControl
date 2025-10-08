@@ -28,22 +28,6 @@ export interface Organization {
   updatedAt?: string;
 }
 
-export interface OrganizationFormData {
-  email: string;
-  password: string;
-  organizationName: string;
-  country: string;
-  city: string;
-  phone?: string;
-  address?: string;
-  website?: string;
-  licenseNumber?: string;
-  taxId?: string;
-  description?: string;
-  maxDoctors?: number;
-  maxPatients?: number;
-}
-
 // ============================================
 // DOCTOR PROFILE TYPES (Profiles + DoctorProfiles tables)
 // ============================================
@@ -70,24 +54,6 @@ export interface DoctorProfile {
   rating?: number;
   totalReviews?: number;
   isActive: boolean;
-}
-
-export interface DoctorRegistrationFormData {
-  email: string;
-  password: string;
-  firstName: string;
-  lastName: string;
-  phone?: string;
-  birthDate?: string;
-  city?: string;
-  address?: string;
-  specialization: string;
-  licenseNumber: string;
-  yearsOfExperience?: number;
-  hospitalAffiliation?: string;
-  consultationFee?: number;
-  bio?: string;
-  isAvailable?: boolean;
 }
 
 // ============================================

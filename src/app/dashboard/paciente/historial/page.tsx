@@ -110,7 +110,7 @@ export default function HistorialPage() {
 
   const filteredHistory = filtroTipo === "todos" 
     ? historyEntries 
-    : historyEntries.filter((entry) => entry.entryType === filtroTipo)
+    : historyEntries.filter((entry) => entry.type === filtroTipo)
 
   const getTypeIcon = (type: string) => {
     switch (type) {

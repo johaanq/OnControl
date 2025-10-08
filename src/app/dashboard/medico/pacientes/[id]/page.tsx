@@ -449,7 +449,7 @@ export default function PatientDetailsPage() {
                         <div key={allergy.id} className="flex items-start gap-2 p-3 bg-destructive/10 rounded-lg">
                           <AlertTriangle className="h-4 w-4 text-destructive mt-0.5" />
                           <div className="flex-1">
-                            <p className="font-medium text-destructive">{allergy.allergyName}</p>
+                            <p className="font-medium text-destructive">{allergy.allergen}</p>
                             {allergy.reaction && (
                               <p className="text-sm text-muted-foreground">Reacción: {allergy.reaction}</p>
                             )}
@@ -499,7 +499,7 @@ export default function PatientDetailsPage() {
                             <div className="flex items-center gap-4 text-sm">
                               <div className="flex items-center gap-1">
                                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                                <span>{formatDate(appointment.dateTime)}</span>
+                                <span>{formatDate(appointment.appointmentDate)}</span>
                               </div>
                               <div className="flex items-center gap-1">
                                 <Clock className="h-4 w-4 text-muted-foreground" />
@@ -565,7 +565,7 @@ export default function PatientDetailsPage() {
                             <div>
                               <p className="text-muted-foreground">Ciclos</p>
                               <p className="font-medium">
-                                {treatment.completedCycles} / {treatment.totalCycles}
+                                {treatment.currentCycle} / {treatment.totalCycles}
                               </p>
                             </div>
                             {treatment.location && (
@@ -610,17 +610,17 @@ export default function PatientDetailsPage() {
                         <div className="space-y-2">
                           <div className="flex items-start justify-between">
                             <div>
-                              <h4 className="font-semibold">{entry.eventType}</h4>
+                              <h4 className="font-semibold">{entry.title}</h4>
                               <p className="text-sm text-muted-foreground">
-                                {formatDate(entry.eventDate)}
+                                {formatDate(entry.date)}
                               </p>
                             </div>
                             <FileText className="h-5 w-5 text-muted-foreground" />
                           </div>
                           <p className="text-sm">{entry.description}</p>
-                          {entry.provider && (
+                          {entry.doctorName && (
                             <p className="text-xs text-muted-foreground">
-                              Proveedor: {entry.provider}
+                              Doctor: {entry.doctorName} {entry.specialty && `- ${entry.specialty}`}
                             </p>
                           )}
                         </div>

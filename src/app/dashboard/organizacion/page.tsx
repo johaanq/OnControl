@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useAuthContext } from '@/contexts/auth-context'
 import { useOrganizationDashboard } from '@/hooks/use-organizations'
 import { isOrganizationUser } from '@/types/organization'

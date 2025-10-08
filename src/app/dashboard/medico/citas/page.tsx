@@ -233,7 +233,7 @@ export default function AppointmentsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {appointmentsList.filter(apt => apt.status === 'Confirmada').length}
+                  {appointmentsList.filter(apt => apt.status === 'CONFIRMED').length}
                 </div>
               </CardContent>
             </Card>
@@ -243,7 +243,7 @@ export default function AppointmentsPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {appointmentsList.filter(apt => apt.status === 'Programada').length}
+                  {appointmentsList.filter(apt => apt.status === 'SCHEDULED').length}
                 </div>
               </CardContent>
             </Card>
@@ -268,10 +268,10 @@ export default function AppointmentsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="Programada">Programadas</SelectItem>
-                    <SelectItem value="Confirmada">Confirmadas</SelectItem>
-                    <SelectItem value="Completada">Completadas</SelectItem>
-                    <SelectItem value="Cancelada">Canceladas</SelectItem>
+                    <SelectItem value="SCHEDULED">Programadas</SelectItem>
+                    <SelectItem value="CONFIRMED">Confirmadas</SelectItem>
+                    <SelectItem value="COMPLETED">Completadas</SelectItem>
+                    <SelectItem value="CANCELLED">Canceladas</SelectItem>
                   </SelectContent>
                 </Select>
                 <Select value={dateFilter} onValueChange={setDateFilter}>
@@ -379,19 +379,19 @@ export default function AppointmentsPage() {
                                   Ver Detalles
                                 </Link>
                               </DropdownMenuItem>
-                              {appointment.status === 'Programada' && (
+                              {appointment.status === 'SCHEDULED' && (
                                 <DropdownMenuItem>
                                   <Check className="mr-2 h-4 w-4" />
                                   Confirmar Cita
                                 </DropdownMenuItem>
                               )}
-                              {appointment.status === 'Confirmada' && (
+                              {appointment.status === 'CONFIRMED' && (
                                 <DropdownMenuItem>
                                   <CheckCircle className="mr-2 h-4 w-4" />
                                   Marcar como Completada
                                 </DropdownMenuItem>
                               )}
-                              {(appointment.status === 'Programada' || appointment.status === 'Confirmada') && (
+                              {(appointment.status === 'SCHEDULED' || appointment.status === 'CONFIRMED') && (
                                 <DropdownMenuItem className="text-muted-foreground hover:text-foreground">
                                   <X className="mr-2 h-4 w-4" />
                                   Cancelar Cita

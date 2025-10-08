@@ -28,8 +28,6 @@ import {
   Stethoscope,
   Activity,
   FileText,
-  Building2,
-  UserPlus,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react"
@@ -48,23 +46,6 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout, isLoading, isAuthenticated } = useAuthContext()
-
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!isLoading && (!isAuthenticated || !user)) {
-      router.push('/auth/login')
-    }
-  }, [isLoading, isAuthenticated, user, router])
-
-  // Show loading while checking authentication
-  if (isLoading) {
-    return <Loading message="Verificando autenticación..." />
-  }
-
-  // Don't render if not authenticated
-  if (!isAuthenticated || !user) {
-    return null
-  }
 
   // Determine user type based on the new architecture
   const userType = user?.type === 'ORGANIZATION' ? 'organizacion' : 
@@ -102,6 +83,23 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
     if (userType === "medico") return medicoNavItems
     return pacienteNavItems
   }, [userType, organizacionNavItems, medicoNavItems, pacienteNavItems])
+
+  // Redirect to login if not authenticated (after all hooks)
+  useEffect(() => {
+    if (!isLoading && (!isAuthenticated || !user)) {
+      router.push('/auth/login')
+    }
+  }, [isLoading, isAuthenticated, user, router])
+
+  // Show loading while checking authentication
+  if (isLoading) {
+    return <Loading message="Verificando autenticación..." />
+  }
+
+  // Don't render if not authenticated
+  if (!isAuthenticated || !user) {
+    return null
+  }
 
   const NavItem = memo(function NavItem({ href, icon: Icon, label, badge, collapsed }: { href: string; icon: React.ComponentType<{ className?: string }>; label: string; badge: string | null; collapsed?: boolean }) {
     const isActive = pathname === href
