@@ -28,17 +28,11 @@ export default function OrganizationDashboardPage() {
 
   const { dashboard, isLoading, error, refetch } = useOrganizationDashboard(organizationId)
 
-  if (authLoading || isLoading) {
-    return (
-      <DashboardLayout>
-        <Loading message="Cargando dashboard..." />
-      </DashboardLayout>
-    )
-  }
-
-  if (error) {
-    return (
-      <DashboardLayout>
+  return (
+    <DashboardLayout>
+      {(authLoading || isLoading) && <Loading message="Cargando dashboard..." />}
+      
+      {error && !authLoading && !isLoading && (
         <div className="flex items-center justify-center h-64">
           <Card className="max-w-md">
             <CardHeader>
@@ -50,16 +44,9 @@ export default function OrganizationDashboardPage() {
             </CardContent>
           </Card>
         </div>
-      </DashboardLayout>
-    )
-  }
+      )}
 
-  if (!dashboard) {
-    return null
-  }
-
-  return (
-    <DashboardLayout>
+      {!authLoading && !isLoading && !error && dashboard && (
       <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
@@ -209,6 +196,7 @@ export default function OrganizationDashboardPage() {
         </CardContent>
       </Card>
       </div>
+      )}
     </DashboardLayout>
   )
 }
