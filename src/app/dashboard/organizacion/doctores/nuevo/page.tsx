@@ -44,7 +44,9 @@ const SPECIALIZATIONS = [
 export default function NewDoctorPage() {
   const { user, isLoading: authLoading } = useAuthContext()
   const router = useRouter()
-  const [organizationId, setOrganizationId] = useState<number | null>(null)
+  
+  // Get organization ID directly from user
+  const organizationId = user && isOrganizationUser(user) ? user.id : null
   const { createDoctor, isLoading, error: actionError } = useOrganizationActions(organizationId)
   
   const [showPassword, setShowPassword] = useState(false)
@@ -70,12 +72,8 @@ export default function NewDoctorPage() {
   const [success, setSuccess] = useState(false)
 
   useEffect(() => {
-    if (!authLoading && user) {
-      if (isOrganizationUser(user)) {
-        setOrganizationId(user.id)
-      } else {
-        router.push('/dashboard')
-      }
+    if (!authLoading && user && !isOrganizationUser(user)) {
+      router.push('/dashboard')
     }
   }, [user, authLoading, router])
 

@@ -17,16 +17,14 @@ import { useRouter } from 'next/navigation'
 export default function DoctorsListPage() {
   const { user, isLoading: authLoading } = useAuthContext()
   const router = useRouter()
-  const [organizationId, setOrganizationId] = useState<number | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   
+  // Get organization ID directly from user
+  const organizationId = user && isOrganizationUser(user) ? user.id : null
+
   useEffect(() => {
-    if (!authLoading && user) {
-      if (isOrganizationUser(user)) {
-        setOrganizationId(user.id)
-      } else {
-        router.push('/dashboard')
-      }
+    if (!authLoading && user && !isOrganizationUser(user)) {
+      router.push('/dashboard')
     }
   }, [user, authLoading, router])
 

@@ -15,16 +15,14 @@ import { useRouter } from 'next/navigation'
 export default function OrganizationDashboardPage() {
   const { user, isLoading: authLoading } = useAuthContext()
   const router = useRouter()
-  const [organizationId, setOrganizationId] = useState<number | null>(null)
+  
+  // Get organization ID directly from user
+  const organizationId = user && isOrganizationUser(user) ? user.id : null
   
   useEffect(() => {
-    if (!authLoading && user) {
-      if (isOrganizationUser(user)) {
-        setOrganizationId(user.id)
-      } else {
-        // Redirect if not an organization
-        router.push('/dashboard')
-      }
+    if (!authLoading && user && !isOrganizationUser(user)) {
+      // Redirect if not an organization
+      router.push('/dashboard')
     }
   }, [user, authLoading, router])
 
