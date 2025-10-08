@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { OrganizationSelector } from './OrganizationSelector';
@@ -19,13 +20,22 @@ interface DoctorRegistrationFormProps {
 const SPECIALIZATIONS = [
   'Oncología Médica',
   'Oncología Quirúrgica',
-  'Radioterapia Oncológica',
+  'Radioterapia',
+  'Radio-Oncología',
+  'Hematología',
   'Hematología Oncológica',
   'Cirugía Oncológica',
   'Medicina Interna',
   'Ginecología Oncológica',
   'Urología Oncológica',
+  'Dermatología Oncológica',
+  'Neumología Oncológica',
+  'Gastroenterología Oncológica',
   'Neurocirugía Oncológica',
+  'Oncología Pediátrica',
+  'Patología Oncológica',
+  'Cuidados Paliativos',
+  'Oncología General',
   'Otra'
 ];
 
@@ -48,6 +58,7 @@ export function DoctorRegistrationForm({
     bio: ''
   });
 
+  const [licenseDigits, setLicenseDigits] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -61,8 +72,14 @@ export function DoctorRegistrationForm({
       return;
     }
 
-    if (!formData.specialization || !formData.licenseNumber || !formData.organizationId) {
+    if (!formData.specialization || !formData.organizationId) {
       setError('Por favor completa la información profesional');
+      return;
+    }
+
+    // Validación del número de licencia (4 dígitos)
+    if (!licenseDigits || licenseDigits.length !== 4) {
+      setError('El número de licencia debe tener 4 dígitos');
       return;
     }
 
@@ -80,7 +97,12 @@ export function DoctorRegistrationForm({
     }
 
     try {
-      await onSubmit(formData);
+      // Formatear el número de licencia con el prefijo MED-
+      const formattedData = {
+        ...formData,
+        licenseNumber: `MED-${licenseDigits}`
+      };
+      await onSubmit(formattedData);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al procesar el formulario');
     }
@@ -198,59 +220,42 @@ export function DoctorRegistrationForm({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="specialization">Especialización *</Label>
-                <select
-                  id="specialization"
+                <Select
                   value={formData.specialization}
-                  onChange={(e) => handleInputChange('specialization', e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  required
+                  onValueChange={(value) => handleInputChange('specialization', value)}
                 >
-                  <option value="">Selecciona una especialización</option>
-                  {SPECIALIZATIONS.map((spec) => (
-                    <option key={spec} value={spec}>
-                      {spec}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger id="specialization">
+                    <SelectValue placeholder="Selecciona una especialización" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SPECIALIZATIONS.map((spec) => (
+                      <SelectItem key={spec} value={spec}>
+                        {spec}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="licenseNumber">Número de Licencia *</Label>
-                <Input
-                  id="licenseNumber"
-                  type="text"
-                  value={formData.licenseNumber}
-                  onChange={(e) => handleInputChange('licenseNumber', e.target.value)}
-                  placeholder="Ej: MED-12345"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="yearsOfExperience">Años de Experiencia</Label>
-                <Input
-                  id="yearsOfExperience"
-                  type="number"
-                  min="0"
-                  max="50"
-                  value={formData.yearsOfExperience || ''}
-                  onChange={(e) => handleInputChange('yearsOfExperience', parseInt(e.target.value) || 0)}
-                  placeholder="Ej: 10"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="consultationFee">Tarifa de Consulta (COP)</Label>
-                <Input
-                  id="consultationFee"
-                  type="number"
-                  min="0"
-                  value={formData.consultationFee || ''}
-                  onChange={(e) => handleInputChange('consultationFee', parseInt(e.target.value) || 0)}
-                  placeholder="Ej: 150000"
-                />
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">MED-</span>
+                  <Input
+                    id="licenseNumber"
+                    type="text"
+                    value={licenseDigits}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      setLicenseDigits(value);
+                    }}
+                    placeholder="0000"
+                    maxLength={4}
+                    className="flex-1"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">Ingresa 4 dígitos</p>
               </div>
             </div>
 

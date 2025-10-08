@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -18,6 +19,28 @@ import { useRouter } from 'next/navigation'
 import { DashboardLayout } from '@/components/dashboard-layout'
 import type { CreateDoctorRequest } from '@/lib/api'
 
+const SPECIALIZATIONS = [
+  'Oncología Médica',
+  'Oncología Quirúrgica',
+  'Radioterapia',
+  'Radio-Oncología',
+  'Hematología',
+  'Hematología Oncológica',
+  'Cirugía Oncológica',
+  'Medicina Interna',
+  'Ginecología Oncológica',
+  'Urología Oncológica',
+  'Dermatología Oncológica',
+  'Neumología Oncológica',
+  'Gastroenterología Oncológica',
+  'Neurocirugía Oncológica',
+  'Oncología Pediátrica',
+  'Patología Oncológica',
+  'Cuidados Paliativos',
+  'Oncología General',
+  'Otra'
+]
+
 export default function NewDoctorPage() {
   const { user, isLoading: authLoading } = useAuthContext()
   const router = useRouter()
@@ -25,6 +48,7 @@ export default function NewDoctorPage() {
   const { createDoctor, isLoading, error: actionError } = useOrganizationActions(organizationId)
   
   const [showPassword, setShowPassword] = useState(false)
+  const [licenseDigits, setLicenseDigits] = useState('')
   const [formData, setFormData] = useState<CreateDoctorRequest>({
     email: '',
     password: '',
@@ -76,13 +100,19 @@ export default function NewDoctorPage() {
       return
     }
 
-    if (!formData.licenseNumber) {
-      setError('El número de licencia es requerido')
+    if (!licenseDigits || licenseDigits.length !== 4) {
+      setError('El número de licencia debe tener 4 dígitos')
       return
     }
 
     try {
-      const result = await createDoctor(formData)
+      // Formatear el número de licencia con el prefijo MED-
+      const formattedData = {
+        ...formData,
+        licenseNumber: `MED-${licenseDigits}`
+      }
+      
+      const result = await createDoctor(formattedData)
       
       if (result) {
         setSuccess(true)
@@ -253,46 +283,41 @@ export default function NewDoctorPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="specialization">Especialización *</Label>
-                  <Input
-                    id="specialization"
+                  <Select
                     value={formData.specialization}
-                    onChange={(e) => handleInputChange('specialization', e.target.value)}
-                    placeholder="Ej: Oncología Médica"
-                    required
-                  />
+                    onValueChange={(value) => handleInputChange('specialization', value)}
+                  >
+                    <SelectTrigger id="specialization">
+                      <SelectValue placeholder="Selecciona una especialización" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SPECIALIZATIONS.map((spec) => (
+                        <SelectItem key={spec} value={spec}>
+                          {spec}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="licenseNumber">Número de Licencia *</Label>
-                  <Input
-                    id="licenseNumber"
-                    value={formData.licenseNumber}
-                    onChange={(e) => handleInputChange('licenseNumber', e.target.value)}
-                    placeholder="Ej: MED-12345"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="yearsOfExperience">Años de Experiencia</Label>
-                  <Input
-                    id="yearsOfExperience"
-                    type="number"
-                    min="0"
-                    value={formData.yearsOfExperience || ''}
-                    onChange={(e) => handleInputChange('yearsOfExperience', parseInt(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="consultationFee">Tarifa de Consulta ($)</Label>
-                  <Input
-                    id="consultationFee"
-                    type="text"
-                    value={formData.consultationFee || ''}
-                    onChange={(e) => handleInputChange('consultationFee', e.target.value)}
-                    placeholder="Ej: 1500.00"
-                  />
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">MED-</span>
+                    <Input
+                      id="licenseNumber"
+                      type="text"
+                      value={licenseDigits}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, '').slice(0, 4);
+                        setLicenseDigits(value);
+                      }}
+                      placeholder="0000"
+                      maxLength={4}
+                      className="flex-1"
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Ingresa 4 dígitos</p>
                 </div>
               </div>
 
