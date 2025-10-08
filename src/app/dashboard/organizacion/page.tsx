@@ -19,14 +19,30 @@ export default function OrganizationDashboardPage() {
   // Get organization ID directly from user
   const organizationId = user && isOrganizationUser(user) ? user.id : null
   
+  const { dashboard, isLoading, error, refetch } = useOrganizationDashboard(organizationId)
+
   useEffect(() => {
-    if (!authLoading && user && !isOrganizationUser(user)) {
+    if (!authLoading && !user) {
+      // Redirect to login if no user
+      router.push('/auth/login')
+    } else if (!authLoading && user && !isOrganizationUser(user)) {
       // Redirect if not an organization
       router.push('/dashboard')
     }
   }, [user, authLoading, router])
 
-  const { dashboard, isLoading, error, refetch } = useOrganizationDashboard(organizationId)
+  // Early return after all hooks are called
+  if (authLoading) {
+    return <Loading message="Verificando autenticación..." />
+  }
+
+  if (!user) {
+    return null
+  }
+
+  if (!isOrganizationUser(user)) {
+    return null
+  }
 
   return (
     <DashboardLayout>
