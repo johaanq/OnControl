@@ -266,14 +266,6 @@ export default function RegisterPage() {
             </div>
           </CardContent>
         </Card>
-
-        <div className="mt-6 text-center">
-          <Alert>
-            <AlertDescription>
-              <strong>Nota:</strong> Los doctores son registrados por las organizaciones, y los pacientes son registrados por los doctores.
-            </AlertDescription>
-          </Alert>
-        </div>
       </div>
     </div>
   );
