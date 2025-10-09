@@ -7,7 +7,7 @@ import {
   apiClient,
   type LoginRequest, 
   type LoginResponse,
-  type RegisterRequest,
+  type RegisterOrganizationRequest,
   type OrganizationLoginResponse,
   type ProfileLoginResponse
 } from '@/lib/api'
@@ -170,7 +170,7 @@ export function useAuth() {
     }
   }, [router])
 
-  const registerOrganization = useCallback(async (data: RegisterRequest) => {
+  const registerOrganization = useCallback(async (data: RegisterOrganizationRequest) => {
     try {
       setAuthState(prev => ({ ...prev, isLoading: true }))
       

@@ -29,6 +29,16 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface RegisterOrganizationRequest {
+  email: string;
+  password: string;
+  organizationName: string;
+  country: string;
+  city: string;
+  phone?: string;
+  address?: string;
+}
+
 // Organization Login Response (from backend AuthController)
 export interface OrganizationLoginResponse {
   id: number;
@@ -715,7 +725,7 @@ class ApiClient {
   // AUTHENTICATION ENDPOINTS
   // ============================================
 
-  async registerOrganization(data: RegisterRequest): Promise<OrganizationLoginResponse> {
+  async registerOrganization(data: RegisterOrganizationRequest): Promise<OrganizationLoginResponse> {
     const response = await this.request<OrganizationLoginResponse>(
       '/api/auth/register/organization',
       {
