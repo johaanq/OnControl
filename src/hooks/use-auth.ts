@@ -58,6 +58,7 @@ export function useAuth() {
       if ('specialization' in profile && 'licenseNumber' in profile) {
         return {
           type: 'DOCTOR',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           profile: profile as any,
           token: profileResponse.token
         } as DoctorUser
@@ -67,6 +68,7 @@ export function useAuth() {
       if ('doctorProfileId' in profile) {
         return {
           type: 'PATIENT',
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           profile: profile as any,
           token: profileResponse.token
         } as PatientUser
@@ -245,7 +247,7 @@ export function useAuth() {
           // For now, just keep the current data
         } else if (authState.user.type === 'DOCTOR') {
           // Refresh doctor dashboard to get updated data
-          const dashboard = await apiClient.getDoctorDashboard(authState.user.profile.id)
+          await apiClient.getDoctorDashboard(authState.user.profile.id)
           // Note: DoctorDashboardResponse doesn't have nested doctor object
           // We keep the existing profile data as the dashboard is for statistics
           // The profile data should be fetched separately if needed
@@ -254,7 +256,7 @@ export function useAuth() {
           // TODO: Add separate endpoint to get DoctorProfile if full refresh is needed
         } else if (authState.user.type === 'PATIENT') {
           // Refresh patient dashboard to get updated data
-          const dashboard = await apiClient.getPatientDashboard(authState.user.profile.id)
+          await apiClient.getPatientDashboard(authState.user.profile.id)
           // Note: PatientDashboardResponse doesn't have nested patient object
           // We keep the existing profile data as the dashboard is for statistics
           

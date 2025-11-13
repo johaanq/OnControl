@@ -16,7 +16,7 @@ import { useAuthContext } from "@/contexts/auth-context"
 import { appointments } from "@/lib/api"
 import type { AppointmentResponse } from "@/lib/api"
 import { isDoctorUser } from "@/types/organization"
-import { Search, Plus, Filter, MoreHorizontal, Eye, Calendar, Clock, MapPin, Check, CheckCircle, X } from "lucide-react"
+import { Search, Plus, MoreHorizontal, Eye, Calendar, Clock, MapPin, Check, CheckCircle, X } from "lucide-react"
 
 export default function AppointmentsPage() {
   const { user } = useAuthContext()

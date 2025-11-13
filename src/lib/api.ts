@@ -357,6 +357,7 @@ export interface TreatmentSessionResponse {
   location?: string;
   medicationsAdministered: string[];
   sideEffects: string[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   vitalSigns?: any;
   notes?: string;
   completedAt?: string;
@@ -809,15 +810,21 @@ class ApiClient {
     return this.request<PatientDashboardResponse>(`/api/dashboard/patient/${patientProfileId}`);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getOrganizationStats(orgId: number): Promise<any> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return this.request<any>(`/api/dashboard/organization/${orgId}/stats`);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getDoctorStats(doctorProfileId: number): Promise<any> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return this.request<any>(`/api/dashboard/doctor/${doctorProfileId}/stats`);
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getPatientStats(patientProfileId: number): Promise<any> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return this.request<any>(`/api/dashboard/patient/${patientProfileId}/stats`);
   }
 
@@ -967,7 +974,9 @@ class ApiClient {
     return response.symptoms;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async getPatientSymptomStats(patientProfileId: number): Promise<any> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return this.request<any>(`/api/symptoms/patient/${patientProfileId}/stats`);
   }
 

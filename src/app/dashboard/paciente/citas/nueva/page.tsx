@@ -25,7 +25,7 @@ import {
   Info,
   CheckCircle
 } from "lucide-react"
-import { format, addDays, isBefore, startOfDay } from "date-fns"
+import { format, isBefore, startOfDay } from "date-fns"
 import { es } from "date-fns/locale"
 import Link from "next/link"
 

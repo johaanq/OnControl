@@ -31,6 +31,7 @@ export function usePatientDashboard(patientProfileId: number | null) {
 
   useEffect(() => {
     loadDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [patientProfileId]);
 
   return {

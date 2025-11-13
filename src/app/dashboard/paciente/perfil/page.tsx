@@ -12,14 +12,12 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Loading } from "@/components/loading"
 import { useAuthContext } from "@/contexts/auth-context"
-import { doctors } from "@/lib/api"
 import type { PatientProfileResponse } from "@/lib/api"
 import { isPatientUser } from "@/types/organization"
 import { 
   User, 
   Mail, 
   Heart, 
-  Shield, 
   Settings,
   Save,
   Edit,

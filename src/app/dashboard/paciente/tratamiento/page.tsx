@@ -6,14 +6,13 @@ import { DashboardLayout } from "@/components/dashboard-layout"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Loading } from "@/components/loading"
 import { useAuthContext } from "@/contexts/auth-context"
 import { treatments } from "@/lib/api"
 import type { TreatmentResponse, TreatmentSessionResponse } from "@/lib/api"
 import { isPatientUser } from "@/types/organization"
-import { Calendar, Clock, Pill, Activity, AlertCircle, CheckCircle, Heart } from "lucide-react"
+import { Calendar, Clock, Pill, Activity, AlertCircle, Heart } from "lucide-react"
 
 const tipoNames: Record<string, string> = {
   CHEMOTHERAPY: "Quimioterapia",

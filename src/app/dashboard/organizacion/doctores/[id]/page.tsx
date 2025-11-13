@@ -1,7 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import { AuthGuard } from "@/components/auth-guard-updated"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
@@ -23,10 +22,8 @@ import {
   Award,
   GraduationCap,
   Building2,
-  DollarSign,
   Users,
   Activity,
-  Heart,
   Clock,
   AlertTriangle,
   CheckCircle2
@@ -37,12 +34,11 @@ import { es } from "date-fns/locale"
 
 export default function DoctorDetailsPage() {
   const { user } = useAuthContext()
-  const router = useRouter()
   const params = useParams()
   const doctorId = params.id ? parseInt(params.id as string) : null
   const organizationId = user && isOrganizationUser(user) ? user.id : null
 
-  const { doctor, isLoading, error, refetch } = useOrganizationDoctor(organizationId, doctorId)
+  const { doctor, isLoading, error } = useOrganizationDoctor(organizationId, doctorId)
 
   const calculateAge = (birthDate?: string) => {
     if (!birthDate) return "N/A"

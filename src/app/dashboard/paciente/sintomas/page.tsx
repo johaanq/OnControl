@@ -15,7 +15,7 @@ import { useAuthContext } from "@/contexts/auth-context"
 import { symptoms } from "@/lib/api"
 import type { SymptomResponse } from "@/lib/api"
 import { isPatientUser } from "@/types/organization"
-import { Search, Plus, Filter, Activity, AlertTriangle, Clock, Calendar } from "lucide-react"
+import { Search, Plus, Activity, AlertTriangle, Clock, Calendar } from "lucide-react"
 
 export default function SymptomsPage() {
   const { user } = useAuthContext()

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter, useParams } from "next/navigation"
+import { useParams } from "next/navigation"
 import { AuthGuard } from "@/components/auth-guard-updated"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
@@ -37,7 +37,6 @@ import { es } from "date-fns/locale"
 
 export default function TreatmentDetailsPage() {
   const { user } = useAuthContext()
-  const router = useRouter()
   const params = useParams()
   const treatmentId = params.id as string
   

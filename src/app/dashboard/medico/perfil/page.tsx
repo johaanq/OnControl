@@ -8,12 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Loading } from "@/components/loading"
 import { useAuthContext } from "@/contexts/auth-context"
-import { doctors } from "@/lib/api"
 import type { DoctorProfileResponse } from "@/lib/api"
 import { isDoctorUser } from "@/types/organization"
 import { 
@@ -24,7 +22,6 @@ import {
   Settings,
   Save,
   Edit,
-  Shield,
   Briefcase
 } from "lucide-react"
 

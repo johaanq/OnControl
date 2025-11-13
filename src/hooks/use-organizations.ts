@@ -91,6 +91,7 @@ export function useOrganizationDashboard(organizationId: number | null, doctorId
 
   useEffect(() => {
     loadDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId, doctorIdFilter]);
 
   return {
@@ -126,6 +127,7 @@ export function useOrganizationDoctors(organizationId: number | null) {
 
   useEffect(() => {
     loadDoctors();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId]);
 
   return {
@@ -161,6 +163,7 @@ export function useOrganizationDoctor(organizationId: number | null, doctorId: n
 
   useEffect(() => {
     loadDoctor();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [organizationId, doctorId]);
 
   return {
@@ -197,6 +200,7 @@ export function useOrganizationActions(organizationId: number | null = null) {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const createOrganization = async (_data: Partial<Organization>): Promise<Organization | null> => {
     try {
       setIsLoading(true);

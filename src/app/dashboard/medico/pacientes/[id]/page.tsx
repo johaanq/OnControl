@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter, useParams } from "next/navigation"
+import { useParams } from "next/navigation"
 import { AuthGuard } from "@/components/auth-guard-updated"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import { Button } from "@/components/ui/button"
@@ -27,7 +27,6 @@ import {
   FileText,
   Clock,
   AlertTriangle,
-  Pill,
   Shield,
   Edit,
   Stethoscope
@@ -38,7 +37,6 @@ import { es } from "date-fns/locale"
 
 export default function PatientDetailsPage() {
   const { user } = useAuthContext()
-  const router = useRouter()
   const params = useParams()
   const patientId = params.id as string
   
@@ -165,21 +163,6 @@ export default function PatientDetailsPage() {
     }
   }
 
-  const getTreatmentStatusColor = (status: string) => {
-    switch (status?.toUpperCase()) {
-      case "ACTIVE":
-      case "ACTIVO":
-        return "bg-primary/10 text-primary"
-      case "COMPLETED":
-      case "COMPLETADO":
-        return "bg-green-500/10 text-green-500"
-      case "CANCELLED":
-      case "CANCELADO":
-        return "bg-red-500/10 text-red-500"
-      default:
-        return "bg-gray-500/10 text-gray-500"
-    }
-  }
 
   const getHistoryTypeIcon = (type?: string) => {
     switch (type?.toUpperCase()) {

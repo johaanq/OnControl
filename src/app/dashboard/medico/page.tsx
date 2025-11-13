@@ -22,7 +22,7 @@ import {
 } from "lucide-react"
 
 export default function MedicoDashboard() {
-  const { user, isAuthenticated } = useAuthContext()
+  const { user } = useAuthContext()
   const [doctorProfileId, setDoctorProfileId] = useState<number | null>(null)
 
   useEffect(() => {

@@ -77,7 +77,7 @@ export default function NewDoctorPage() {
     }
   }, [user, authLoading, router])
 
-  const handleInputChange = (field: keyof CreateDoctorRequest, value: any) => {
+  const handleInputChange = (field: keyof CreateDoctorRequest, value: string | number | boolean | undefined) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
     setError('')
   }

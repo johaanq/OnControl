@@ -34,6 +34,7 @@ export function useDoctorDashboard(doctorProfileId: number | null, patientIdFilt
 
   useEffect(() => {
     loadDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doctorProfileId, patientIdFilter]);
 
   return {
@@ -69,6 +70,7 @@ export function useDoctorPatients(doctorProfileId: number | null) {
 
   useEffect(() => {
     loadPatients();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doctorProfileId]);
 
   return {
@@ -104,6 +106,7 @@ export function useDoctorPatient(doctorProfileId: number | null, patientId: numb
 
   useEffect(() => {
     loadPatient();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doctorProfileId, patientId]);
 
   return {
@@ -142,6 +145,7 @@ export function useDoctorPatientSymptoms(
 
   useEffect(() => {
     loadSymptoms();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doctorProfileId, patientId]);
 
   return {
