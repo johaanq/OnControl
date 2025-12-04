@@ -43,9 +43,14 @@ interface DashboardLayoutProps {
 export const DashboardLayout = memo(function DashboardLayout({ children }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const { user, logout, isLoading, isAuthenticated } = useAuthContext()
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Determine user type based on the new architecture
   const userType = user?.type === 'ORGANIZATION' ? 'organizacion' : 
@@ -99,6 +104,11 @@ export const DashboardLayout = memo(function DashboardLayout({ children }: Dashb
   // Don't render if not authenticated
   if (!isAuthenticated || !user) {
     return null
+  }
+
+  // Evitar problemas de hidratación esperando a que el componente esté montado
+  if (!isMounted) {
+    return <Loading message="Cargando..." />
   }
 
   const NavItem = memo(function NavItem({ href, icon: Icon, label, badge, collapsed }: { href: string; icon: React.ComponentType<{ className?: string }>; label: string; badge: string | null; collapsed?: boolean }) {

@@ -155,10 +155,10 @@ export default function TratamientoPacientePage() {
                   </span>
                   <span className="text-primary">{treatment.progressPercentage}%</span>
                 </div>
-                <div className="w-full bg-muted rounded-full h-4 border-2 border-border/50">
+                <div className="w-full bg-muted rounded-full h-4 border-2 border-border/50 overflow-hidden">
                   <div
                     className="bg-gradient-to-r from-primary to-secondary h-4 rounded-full transition-all duration-300 shadow-lg"
-                    style={{ width: `${treatment.progressPercentage}%` }}
+                    style={{ width: `${Math.min(treatment.progressPercentage, 100)}%` }}
                   />
                 </div>
               </div>

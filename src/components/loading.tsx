@@ -23,7 +23,7 @@ export const Loading = memo(function Loading({
       <div className="text-center space-y-4">
         <OnControlLogo size={size} className="justify-center" />
         <div className={`animate-spin rounded-full border-b-2 border-primary mx-auto ${sizeClasses[size]}`}></div>
-        <p className="text-muted-foreground">{message}</p>
+        <p className="text-muted-foreground" suppressHydrationWarning>{message}</p>
       </div>
     </div>
   )

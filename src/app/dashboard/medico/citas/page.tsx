@@ -11,15 +11,20 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Loading } from "@/components/loading"
 import { useAuthContext } from "@/contexts/auth-context"
 import { appointments } from "@/lib/api"
 import type { AppointmentResponse } from "@/lib/api"
 import { isDoctorUser } from "@/types/organization"
 import { Search, Plus, MoreHorizontal, Eye, Calendar, Clock, MapPin, Check, CheckCircle, X } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 export default function AppointmentsPage() {
   const { user } = useAuthContext()
+  const { toast } = useToast()
   const [doctorProfileId, setDoctorProfileId] = useState<number | null>(null)
   const [appointmentsList, setAppointmentsList] = useState<AppointmentResponse[]>([])
   const [filteredAppointments, setFilteredAppointments] = useState<AppointmentResponse[]>([])
@@ -28,6 +33,14 @@ export default function AppointmentsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [dateFilter, setDateFilter] = useState("all")
+  
+  // Reschedule dialog state
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false)
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<number | null>(null)
+  const [rescheduleDate, setRescheduleDate] = useState("")
+  const [rescheduleTime, setRescheduleTime] = useState("")
+  const [rescheduleReason, setRescheduleReason] = useState("")
+  const [isRescheduling, setIsRescheduling] = useState(false)
 
   useEffect(() => {
     if (user && isDoctorUser(user)) {
@@ -99,6 +112,112 @@ export default function AppointmentsPage() {
 
     setFilteredAppointments(filtered)
   }, [appointmentsList, searchTerm, statusFilter, dateFilter])
+
+  const handleConfirmAppointment = async (id: number) => {
+    try {
+      await appointments.updateStatus(id, 'CONFIRMED')
+      const updatedList = await appointments.getDoctorAppointments(doctorProfileId!)
+      setAppointmentsList(updatedList)
+      toast({
+        title: "Cita confirmada",
+        description: "La cita ha sido confirmada exitosamente",
+      })
+    } catch (err) {
+      console.error('Error confirming appointment:', err)
+      toast({
+        title: "Error",
+        description: "No se pudo confirmar la cita",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleCompleteAppointment = async (id: number) => {
+    try {
+      await appointments.updateStatus(id, 'COMPLETED')
+      const updatedList = await appointments.getDoctorAppointments(doctorProfileId!)
+      setAppointmentsList(updatedList)
+      toast({
+        title: "Cita completada",
+        description: "La cita ha sido marcada como completada",
+      })
+    } catch (err) {
+      console.error('Error completing appointment:', err)
+      toast({
+        title: "Error",
+        description: "No se pudo completar la cita",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleCancelAppointment = async (id: number) => {
+    if (!confirm('¿Estás seguro de que deseas cancelar esta cita?')) return
+    
+    try {
+      await appointments.updateStatus(id, 'CANCELLED')
+      const updatedList = await appointments.getDoctorAppointments(doctorProfileId!)
+      setAppointmentsList(updatedList)
+      toast({
+        title: "Cita cancelada",
+        description: "La cita ha sido cancelada",
+      })
+    } catch (err) {
+      console.error('Error cancelling appointment:', err)
+      toast({
+        title: "Error",
+        description: "No se pudo cancelar la cita",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleRescheduleAppointment = (id: number) => {
+    setSelectedAppointmentId(id)
+    setRescheduleDialogOpen(true)
+  }
+
+  const handleRescheduleSubmit = async () => {
+    if (!selectedAppointmentId || !rescheduleDate || !rescheduleTime) {
+      toast({
+        title: "Error",
+        description: "Por favor completa la fecha y hora",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsRescheduling(true)
+    try {
+      const [hours, minutes] = rescheduleTime.split(':')
+      const newDateTime = new Date(rescheduleDate)
+      newDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0)
+
+      await appointments.reschedule(selectedAppointmentId, newDateTime.toISOString(), rescheduleReason)
+      const updatedList = await appointments.getDoctorAppointments(doctorProfileId!)
+      setAppointmentsList(updatedList)
+      
+      toast({
+        title: "Cita reprogramada",
+        description: "La cita ha sido reprogramada exitosamente",
+      })
+      
+      setRescheduleDialogOpen(false)
+      setSelectedAppointmentId(null)
+      setRescheduleDate("")
+      setRescheduleTime("")
+      setRescheduleReason("")
+    } catch (err) {
+      console.error('Error rescheduling appointment:', err)
+      toast({
+        title: "Error",
+        description: "No se pudo reprogramar la cita",
+        variant: "destructive",
+      })
+    } finally {
+      setIsRescheduling(false)
+    }
+  }
 
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -428,22 +547,32 @@ export default function AppointmentsPage() {
                                 </Link>
                               </DropdownMenuItem>
                               {appointment.status === 'SCHEDULED' && (
-                                <DropdownMenuItem>
-                                  <Check className="mr-2 h-4 w-4" />
-                                  Confirmar Cita
-                                </DropdownMenuItem>
+                                <>
+                                  <DropdownMenuItem onClick={() => handleConfirmAppointment(appointment.id)}>
+                                    <Check className="mr-2 h-4 w-4" />
+                                    Confirmar Cita
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleRescheduleAppointment(appointment.id)}>
+                                    <Calendar className="mr-2 h-4 w-4" />
+                                    Reprogramar
+                                  </DropdownMenuItem>
+                                </>
                               )}
                               {appointment.status === 'CONFIRMED' && (
-                                <DropdownMenuItem>
-                                  <CheckCircle className="mr-2 h-4 w-4" />
-                                  Marcar como Completada
-                                </DropdownMenuItem>
-                              )}
-                              {(appointment.status === 'SCHEDULED' || appointment.status === 'CONFIRMED') && (
-                                <DropdownMenuItem className="text-muted-foreground hover:text-foreground">
-                                  <X className="mr-2 h-4 w-4" />
-                                  Cancelar Cita
-                                </DropdownMenuItem>
+                                <>
+                                  <DropdownMenuItem onClick={() => handleCompleteAppointment(appointment.id)}>
+                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                    Marcar como Completada
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleRescheduleAppointment(appointment.id)}>
+                                    <Calendar className="mr-2 h-4 w-4" />
+                                    Reprogramar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="text-destructive hover:text-destructive" onClick={() => handleCancelAppointment(appointment.id)}>
+                                    <X className="mr-2 h-4 w-4" />
+                                    Cancelar Cita
+                                  </DropdownMenuItem>
+                                </>
                               )}
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -455,6 +584,69 @@ export default function AppointmentsPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Reschedule Dialog */}
+          <Dialog open={rescheduleDialogOpen} onOpenChange={setRescheduleDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Reprogramar Cita</DialogTitle>
+                <DialogDescription>
+                  Selecciona la nueva fecha y hora para la cita
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="reschedule-date">Nueva Fecha</Label>
+                  <Input
+                    id="reschedule-date"
+                    type="date"
+                    value={rescheduleDate}
+                    onChange={(e) => setRescheduleDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reschedule-time">Nueva Hora</Label>
+                  <Input
+                    id="reschedule-time"
+                    type="time"
+                    value={rescheduleTime}
+                    onChange={(e) => setRescheduleTime(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="reschedule-reason">Razón (opcional)</Label>
+                  <Textarea
+                    id="reschedule-reason"
+                    placeholder="Explica el motivo de la reprogramación..."
+                    value={rescheduleReason}
+                    onChange={(e) => setRescheduleReason(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setRescheduleDialogOpen(false)
+                    setRescheduleDate("")
+                    setRescheduleTime("")
+                    setRescheduleReason("")
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleRescheduleSubmit}
+                  disabled={isRescheduling || !rescheduleDate || !rescheduleTime}
+                  className="bg-gradient-to-r from-primary to-secondary text-white"
+                >
+                  {isRescheduling ? "Reprogramando..." : "Reprogramar"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </DashboardLayout>
     </AuthGuard>

@@ -408,14 +408,17 @@ export interface MedicationResponse {
   name: string;
   dosage: string;
   frequency: string;
-  route: string;
+  route?: string; // ORAL, INTRAVENOUS, INTRAMUSCULAR, SUBCUTANEOUS, TOPICAL
   startDate: string;
   endDate?: string;
   status: string;
   instructions?: string;
-  sideEffects: string[];
+  sideEffects?: string; // Backend sends string, not array
+  nextDoseTime?: string;
   nextRefillDate?: string;
+  adherencePercentage?: number;
   isActive: boolean;
+  isPrn?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -952,6 +955,17 @@ class ApiClient {
     return response.appointment;
   }
 
+  async rescheduleAppointment(id: number, newAppointmentDate: string, reason?: string): Promise<AppointmentResponse> {
+    const response = await this.request<{ appointment: AppointmentResponse }>(
+      `/api/appointments/${id}/reschedule`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ newAppointmentDate, reason }),
+      }
+    );
+    return response.appointment;
+  }
+
   // ============================================
   // SYMPTOM ENDPOINTS
   // ============================================
@@ -1313,6 +1327,8 @@ export const appointments = {
   updateStatus: (id: number, status: AppointmentResponse['status'], reason?: string) =>
     apiClient.updateAppointmentStatus(id, status, reason),
   addFollowUp: (id: number, notes: string) => apiClient.addAppointmentFollowUp(id, notes),
+  reschedule: (id: number, newAppointmentDate: string, reason?: string) =>
+    apiClient.rescheduleAppointment(id, newAppointmentDate, reason),
 };
 
 export const symptoms = {

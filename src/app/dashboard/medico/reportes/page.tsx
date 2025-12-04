@@ -16,7 +16,7 @@ import type {
   TreatmentsByTypeResponse,
   AppointmentsByDayResponse 
 } from "@/lib/api"
-import { isDoctorUser } from "@/types/organization"
+import { isDoctorUser, getUserDisplayName } from "@/types/organization"
 import { 
   BarChart3, 
   TrendingUp, 
@@ -29,6 +29,9 @@ import {
   PieChart,
   LineChart
 } from "lucide-react"
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import { useToast } from "@/hooks/use-toast"
 
 const tipoNames: Record<string, string> = {
   CHEMOTHERAPY: "Quimioterapia",
@@ -51,12 +54,14 @@ const dayNames: Record<string, string> = {
 
 export default function ReportesPage() {
   const { user } = useAuthContext()
+  const { toast } = useToast()
   const [doctorProfileId, setDoctorProfileId] = useState<number | null>(null)
   const [overview, setOverview] = useState<DoctorReportsResponse | null>(null)
   const [patientsByMonth, setPatientsByMonth] = useState<PatientsByMonthResponse | null>(null)
   const [treatmentsByType, setTreatmentsByType] = useState<TreatmentsByTypeResponse | null>(null)
   const [appointmentsByDay, setAppointmentsByDay] = useState<AppointmentsByDayResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [periodoSeleccionado, setPeriodoSeleccionado] = useState("mes")
 
@@ -97,14 +102,194 @@ export default function ReportesPage() {
     loadReports()
   }, [doctorProfileId])
 
-  const generarReporte = () => {
-    console.log("Generando reporte:", { periodoSeleccionado })
-    // TODO: Implementar generación de reportes personalizados
+  const generarReporte = async () => {
+    if (!doctorProfileId || !overview) return
+
+    setIsGenerating(true)
+    try {
+      // Determinar el número de meses según el período seleccionado
+      let months = 1
+      switch (periodoSeleccionado) {
+        case 'semana':
+          months = 1
+          break
+        case 'mes':
+          months = 1
+          break
+        case 'trimestre':
+          months = 3
+          break
+        case 'año':
+          months = 12
+          break
+      }
+
+      // Recargar datos con el nuevo período
+      const [monthData, typeData, dayData] = await Promise.all([
+        reports.getPatientsByMonth(doctorProfileId, months).catch(() => ({ data: [] })),
+        reports.getTreatmentsByType(doctorProfileId).catch(() => ({ data: [] })),
+        reports.getAppointmentsByDay(doctorProfileId).catch(() => ({ data: [] }))
+      ])
+
+      setPatientsByMonth(monthData)
+      setTreatmentsByType(typeData)
+      setAppointmentsByDay(dayData)
+
+      toast({
+        title: "Reporte generado",
+        description: `Reporte actualizado para el período: ${periodoSeleccionado}`,
+      })
+    } catch (err) {
+      console.error('Error generando reporte:', err)
+      toast({
+        title: "Error",
+        description: "No se pudo generar el reporte",
+        variant: "destructive",
+      })
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   const exportarReporte = () => {
-    console.log("Exportando reporte")
-    // TODO: Implementar exportación a PDF
+    if (!overview || !user) return
+
+    try {
+      const doc = new jsPDF()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      let yPos = 20
+
+      // Título
+      doc.setFontSize(20)
+      doc.setTextColor(16, 185, 129)
+      doc.text('Reporte de Analisis Medico', pageWidth / 2, yPos, { align: 'center' })
+      
+      yPos += 10
+      doc.setFontSize(12)
+      doc.setTextColor(100, 100, 100)
+      doc.text(`Doctor: ${getUserDisplayName(user)}`, pageWidth / 2, yPos, { align: 'center' })
+      
+      yPos += 5
+      const fechaActual = new Date()
+      const dia = fechaActual.getDate()
+      const mes = fechaActual.toLocaleDateString('es-ES', { month: 'long' })
+      const anio = fechaActual.getFullYear()
+      doc.text(`Fecha: ${dia} de ${mes} de ${anio}`, pageWidth / 2, yPos, { align: 'center' })
+      
+      yPos += 5
+      const periodoTexto = periodoSeleccionado === 'semana' ? 'Esta semana' :
+                          periodoSeleccionado === 'mes' ? 'Este mes' :
+                          periodoSeleccionado === 'trimestre' ? 'Este trimestre' : 'Este año'
+      doc.text(`Periodo: ${periodoTexto}`, pageWidth / 2, yPos, { align: 'center' })
+      
+      yPos += 15
+
+      // Métricas principales
+      doc.setFontSize(14)
+      doc.setTextColor(0, 0, 0)
+      doc.text('Métricas Principales', 14, yPos)
+      yPos += 5
+
+      autoTable(doc, {
+        startY: yPos,
+        head: [['Métrica', 'Valor']],
+        body: [
+          ['Pacientes Totales', overview.patients.total.toString()],
+          ['Pacientes Activos', overview.patients.active.toString()],
+          ['Crecimiento Mensual', `+${overview.patients.monthlyGrowth}`],
+          ['Tratamientos Activos', overview.treatments.active.toString()],
+          ['Efectividad Promedio', `${overview.treatments.averageEffectiveness.toFixed(0)}%`],
+          ['Citas Este Mes', overview.appointments.totalMonth.toString()],
+          ['Citas Completadas', overview.appointments.completed.toString()],
+          ['Satisfacción Promedio', `${overview.patients.averageSatisfaction.toFixed(1)}/5.0`],
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [16, 185, 129] },
+      })
+
+      yPos = (doc as any).lastAutoTable.finalY + 10
+
+      // Distribución de tratamientos
+      if (treatmentsByType?.data && treatmentsByType.data.length > 0) {
+        doc.setFontSize(14)
+        doc.text('Distribución de Tratamientos', 14, yPos)
+        yPos += 5
+
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Tipo de Tratamiento', 'Cantidad', 'Porcentaje']],
+          body: treatmentsByType.data.map(item => [
+            tipoNames[item.type] || item.type,
+            item.count.toString(),
+            `${item.percentage.toFixed(0)}%`
+          ]),
+          theme: 'grid',
+          headStyles: { fillColor: [16, 185, 129] },
+        })
+
+        yPos = (doc as any).lastAutoTable.finalY + 10
+      }
+
+      // Nueva página si es necesario
+      if (yPos > 250) {
+        doc.addPage()
+        yPos = 20
+      }
+
+      // Crecimiento de pacientes
+      if (patientsByMonth?.data && patientsByMonth.data.length > 0) {
+        doc.setFontSize(14)
+        doc.text('Crecimiento de Pacientes', 14, yPos)
+        yPos += 5
+
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Mes', 'Pacientes']],
+          body: patientsByMonth.data.map(item => [
+            item.monthName,
+            item.count.toString()
+          ]),
+          theme: 'grid',
+          headStyles: { fillColor: [16, 185, 129] },
+        })
+
+        yPos = (doc as any).lastAutoTable.finalY + 10
+      }
+
+      // Citas por día
+      if (appointmentsByDay?.data && appointmentsByDay.data.length > 0 && yPos < 250) {
+        doc.setFontSize(14)
+        doc.text('Distribución Semanal de Citas', 14, yPos)
+        yPos += 5
+
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Día', 'Citas']],
+          body: appointmentsByDay.data.map(item => [
+            dayNames[item.day] || item.dayName,
+            item.count.toString()
+          ]),
+          theme: 'grid',
+          headStyles: { fillColor: [16, 185, 129] },
+        })
+      }
+
+      // Guardar PDF
+      const fileName = `reporte_${periodoSeleccionado}_${new Date().getTime()}.pdf`
+      doc.save(fileName)
+
+      toast({
+        title: "Reporte exportado",
+        description: `PDF generado exitosamente: ${fileName}`,
+      })
+    } catch (err) {
+      console.error('Error exportando reporte:', err)
+      toast({
+        title: "Error",
+        description: "No se pudo exportar el reporte a PDF",
+        variant: "destructive",
+      })
+    }
   }
 
   if (isLoading) {
@@ -159,11 +344,20 @@ export default function ReportesPage() {
                   <SelectItem value="año">Este año</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline" onClick={generarReporte} className="border-2 hover:bg-primary hover:text-primary-foreground h-11 px-6">
+              <Button 
+                variant="outline" 
+                onClick={generarReporte} 
+                disabled={isGenerating}
+                className="border-2 hover:bg-primary hover:text-primary-foreground h-11 px-6"
+              >
                 <Filter className="mr-2 h-5 w-5" />
-                Generar Reporte
+                {isGenerating ? 'Generando...' : 'Generar Reporte'}
               </Button>
-              <Button className="bg-gradient-to-r from-primary to-secondary text-white hover:opacity-90 transition-opacity h-11 px-6 shadow-lg hover:shadow-xl" onClick={exportarReporte}>
+              <Button 
+                className="bg-gradient-to-r from-primary to-secondary text-white hover:opacity-90 transition-opacity h-11 px-6 shadow-lg hover:shadow-xl" 
+                onClick={exportarReporte}
+                disabled={!overview}
+              >
                 <Download className="mr-2 h-5 w-5" />
                 Exportar PDF
               </Button>

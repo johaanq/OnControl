@@ -70,7 +70,8 @@ export default function CalendarPage() {
 
   const getAppointmentsForDate = (date: Date) => {
     return appointmentsList.filter(appointment => 
-      isSameDay(parseISO(appointment.appointmentDate), date)
+      isSameDay(parseISO(appointment.appointmentDate), date) &&
+      appointment.status === 'CONFIRMED' // Solo mostrar citas confirmadas en el calendario
     )
   }
 
@@ -90,7 +91,7 @@ export default function CalendarPage() {
   }
 
   const renderWeekView = () => {
-    const startWeek = startOfWeek(currentDate)
+    const startWeek = startOfWeek(currentDate, { weekStartsOn: 1 })
     const days = Array.from({ length: 7 }, (_, i) => addDays(startWeek, i))
 
     return (
@@ -179,8 +180,8 @@ export default function CalendarPage() {
   const renderMonthView = () => {
     const startMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
     const endMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0)
-    const startWeek = startOfWeek(startMonth)
-    const endWeek = startOfWeek(addDays(endMonth, 7))
+    const startWeek = startOfWeek(startMonth, { weekStartsOn: 1 })
+    const endWeek = startOfWeek(addDays(endMonth, 7), { weekStartsOn: 1 })
     
     const weeks = []
     let currentWeek = startWeek
@@ -330,7 +331,7 @@ export default function CalendarPage() {
                 </div>
                   <h2 className="text-xl font-bold">
                     {view === 'week' 
-                      ? `${format(startOfWeek(currentDate), 'd MMM', { locale: es })} - ${format(addDays(startOfWeek(currentDate), 6), 'd MMM yyyy', { locale: es })}`
+                      ? `${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'd MMM', { locale: es })} - ${format(addDays(startOfWeek(currentDate, { weekStartsOn: 1 }), 6), 'd MMM yyyy', { locale: es })}`
                       : format(currentDate, 'MMMM yyyy', { locale: es })
                     }
                   </h2>

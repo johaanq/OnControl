@@ -292,7 +292,7 @@ export default function MedicamentosPage() {
                       <div className="p-4 bg-muted/50 rounded-xl border-2 border-border/50">
                         <p className="text-sm font-semibold text-muted-foreground mb-2">Vía</p>
                         <p className="text-xl font-bold text-foreground">
-                          {routeNames[medication.route] || medication.route}
+                          {medication.route ? (routeNames[medication.route] || medication.route) : 'No especificada'}
                         </p>
                       </div>
                     </div>
@@ -329,16 +329,10 @@ export default function MedicamentosPage() {
                     )}
 
                     {/* Side Effects */}
-                    {medication.sideEffects && medication.sideEffects.length > 0 && (
+                    {medication.sideEffects && (
                       <div className="p-4 bg-muted/50 rounded-xl border-2 border-border/50">
                         <p className="text-sm font-bold mb-3 text-foreground">Posibles efectos secundarios:</p>
-                        <div className="flex flex-wrap gap-2">
-                          {medication.sideEffects.map((effect, index) => (
-                            <Badge key={index} variant="outline" className="bg-secondary/10 border-2 font-semibold">
-                              {effect}
-                            </Badge>
-                          ))}
-                        </div>
+                        <p className="text-sm text-muted-foreground">{medication.sideEffects}</p>
                       </div>
                     )}
 
